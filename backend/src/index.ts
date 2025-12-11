@@ -38,8 +38,9 @@ app.use('/api/v1/friends', friendsRoutes);
 initializeGameSocket(server);
 
 // Start server
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
+  console.log(`🌐 Network access: http://0.0.0.0:${PORT}`);
 });
 

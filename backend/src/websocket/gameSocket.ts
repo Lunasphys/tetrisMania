@@ -25,10 +25,21 @@ const playerStates = new Map<string, PlayerState>();
  * Initialize WebSocket server
  */
 export function initializeGameSocket(server: HTTPServer): SocketIOServer {
+  // Allow connections from localhost and local network in development
+  const allowedOrigins = process.env.NODE_ENV === 'production'
+    ? [process.env.FRONTEND_URL || 'http://localhost:5173']
+    : [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        /^http:\/\/192\.168\.\d+\.\d+:5173$/, // Local network IPs
+        /^http:\/\/10\.\d+\.\d+\.\d+:5173$/,  // Local network IPs (10.x.x.x)
+      ];
+
   const io = new SocketIOServer(server, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+      origin: allowedOrigins,
       methods: ['GET', 'POST'],
+      credentials: true,
     },
   });
 
