@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { supabase } from './supabase';
 
 // Auto-detect backend URL based on current hostname
 const getApiBaseUrl = () => {
@@ -27,13 +28,14 @@ export const api = axios.create({
 });
 
 // Add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('supabase.auth.token');
-  if (token) {
-    const parsed = JSON.parse(token);
-    if (parsed?.access_token) {
-      config.headers.Authorization = `Bearer ${parsed.access_token}`;
+api.interceptors.request.use(async (config) => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
     }
+  } catch (error) {
+    console.error('Failed to get auth token:', error);
   }
   return config;
 });
