@@ -33,6 +33,7 @@ export function initializeGameSocket(server: HTTPServer): SocketIOServer {
         'http://127.0.0.1:5173',
         /^http:\/\/192\.168\.\d+\.\d+:5173$/, // Local network IPs
         /^http:\/\/10\.\d+\.\d+\.\d+:5173$/,  // Local network IPs (10.x.x.x)
+        /^http:\/\/172\.\d+\.\d+\.\d+:5173$/, // Local network IPs (172.x.x.x - hotspot)
       ];
 
   const io = new SocketIOServer(server, {

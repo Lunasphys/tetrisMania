@@ -6,12 +6,8 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // Allow access from network
     port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-    },
+    // Proxy disabled - using direct API URL from VITE_API_URL env variable
+    // This allows remote clients to connect to the correct backend IP
   },
 });
 
