@@ -1,0 +1,14 @@
+VOTRE IP POUR LE HOTSPOT:
+=======================
+
+IP Wi-Fi (Hotspot): 172.20.10.11
+
+L'autre joueur doit ouvrir dans son navigateur:
+http://172.20.10.11:5173
+
+Vous ouvrez:
+http://localhost:5173
+
+IMPORTANT: Cette IP peut changer si vous vous reconnectez au hotspot.
+Vérifiez avec: ipconfig | Select-String "Wi-Fi" -Context 0,3
+
