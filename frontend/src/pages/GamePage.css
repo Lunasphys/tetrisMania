@@ -1,8 +1,97 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* Palette de couleurs Tetris personnalisée */
+  --color-primary: #00f5ff;
+  --color-secondary: #ff6b35;
+  --color-accent: #f7931e;
+  --color-success: #4ade80;
+  --color-danger: #ef4444;
+  --color-dark: #0a0e27;
+  --color-dark-secondary: #1a1f3a;
+  --color-text: #ffffff;
+  --color-text-muted: #a0aec0;
+  
+  /* Ombres personnalisées */
+  --shadow-sm: 0 2px 8px rgba(0, 245, 255, 0.1);
+  --shadow-md: 0 4px 16px rgba(0, 245, 255, 0.2);
+  --shadow-lg: 0 8px 32px rgba(0, 245, 255, 0.3);
+  --shadow-glow: 0 0 20px rgba(0, 245, 255, 0.5);
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--color-dark);
+  color: var(--color-text);
+  overflow-x: hidden;
+}
+
+/* Animation de fond animé */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Effet de particules en arrière-plan */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    radial-gradient(circle at 20% 50%, rgba(0, 245, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255, 107, 53, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 20%, rgba(247, 147, 30, 0.1) 0%, transparent 50%);
+  background-size: 200% 200%;
+  animation: gradient-shift 15s ease infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+#root {
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* Scrollbar personnalisée */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-dark-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
+
 .game-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1629 100%);
+  background-size: 200% 200%;
+  animation: gradient-shift 25s ease infinite;
   padding: 20px;
   color: #fff;
+  position: relative;
 }
 
 .game-page.loading {
@@ -43,21 +132,43 @@
 
 .start-game-button {
   margin-top: 2rem;
-  padding: 15px 40px;
-  background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+  padding: 18px 50px;
+  background: linear-gradient(135deg, #00f5ff 0%, #ff6b35 100%);
   color: #fff;
   border: none;
-  border-radius: 10px;
-  font-size: 1.2rem;
-  font-weight: bold;
+  border-radius: 16px;
+  font-size: 1.3rem;
+  font-weight: 800;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 30px rgba(0, 245, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.start-game-button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.start-game-button:hover::before {
+  width: 400px;
+  height: 400px;
 }
 
 .start-game-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(78, 205, 196, 0.5);
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 12px 40px rgba(0, 245, 255, 0.7);
 }
 
 .start-game-button:disabled {
@@ -76,10 +187,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 15px;
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  margin-bottom: 30px;
+  padding: 20px 25px;
+  background: rgba(26, 31, 58, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 245, 255, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .session-info {
@@ -90,16 +204,24 @@
 
 .session-info h2 {
   margin: 0;
-  color: #4ecdc4;
+  background: linear-gradient(135deg, #00f5ff 0%, #ff6b35 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 800;
+  font-size: 1.8rem;
 }
 
 .role-badge {
-  background-color: #4ecdc4;
-  color: #000;
-  padding: 5px 15px;
+  background: linear-gradient(135deg, #00f5ff 0%, #00d4ff 100%);
+  color: #0a0e27;
+  padding: 8px 20px;
   border-radius: 20px;
-  font-weight: bold;
+  font-weight: 800;
   text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 15px rgba(0, 245, 255, 0.4);
 }
 
 .connection-status {

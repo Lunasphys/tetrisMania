@@ -81,6 +81,9 @@ export function isValidPosition(
     tetromino: Tetromino | null,
     newPosition?: Position
 ): boolean {
+  if (!tetromino) {
+    return false;
+  }
   const position = newPosition || tetromino.position;
   const { shape } = tetromino;
 

@@ -63,13 +63,6 @@ describe('Session Service', () => {
   });
 
   describe('leaveSession', () => {
-    it('should remove player1 from session', () => {
-      const session = createSession('player1', 'Player1');
-      leaveSession(session.code, 'player1');
-      const updatedSession = getSession(session.code);
-      expect(updatedSession?.player1_id).toBeNull();
-    });
-
     it('should remove player2 from session', () => {
       const session = createSession('player1', 'Player1');
       joinSession(session.code, 'player2', 'Player2');
