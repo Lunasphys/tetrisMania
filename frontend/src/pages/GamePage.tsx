@@ -4,8 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { gameService } from '../services/gameService';
 import { friendsService } from '../services/friendsService';
+import { gameInvitationsService } from '../services/gameInvitationsService';
 import TetrisGrid from '../components/TetrisGrid';
 import Chat from '../components/Chat';
+import InviteFriendsList from '../components/InviteFriendsList';
 import './GamePage.css';
 
 export default function GamePage() {
@@ -18,6 +20,7 @@ export default function GamePage() {
     const [role, setRole] = useState<'player1' | 'player2' | null>(null);
     const [waitingForPlayer, setWaitingForPlayer] = useState(true);
     const [sendingFriendRequest, setSendingFriendRequest] = useState(false);
+    const [sendingInvitation, setSendingInvitation] = useState(false);
     const initializingRef = useRef(false); // Prevent double initialization
 
     // Initialize game session
@@ -242,6 +245,21 @@ export default function GamePage() {
         }
     };
 
+    const handleInviteFriend = async (friendId: string) => {
+        if (!user || !sessionCode) return;
+
+        setSendingInvitation(true);
+        try {
+            await gameInvitationsService.sendInvitation(friendId, sessionCode);
+            alert('Invitation envoyée !');
+        } catch (error: any) {
+            const message = error.response?.data?.details || error.message || 'Erreur lors de l\'envoi de l\'invitation';
+            alert(message);
+        } finally {
+            setSendingInvitation(false);
+        }
+    };
+
     if (!connected || !playerId || !sessionCode) {
         return (
             <div className="game-page loading">
@@ -388,6 +406,17 @@ export default function GamePage() {
                             <div>Space Hard Drop</div>
                         </div>
                     </div>
+
+                    {sessionInfo?.session && !waitingForPlayer && user && role === 'player1' && (
+                        <div className="opponent-actions">
+                            <h3>Inviter un ami</h3>
+                            <InviteFriendsList 
+                                sessionCode={sessionCode}
+                                onInvite={handleInviteFriend}
+                                disabled={sendingInvitation || !connected}
+                            />
+                        </div>
+                    )}
 
                     {sessionInfo?.session && !waitingForPlayer && user && (
                         <div className="opponent-actions">

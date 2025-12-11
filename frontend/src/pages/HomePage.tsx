@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { gameInvitationsService } from '../services/gameInvitationsService';
 import './HomePage.css';
 
 export default function HomePage() {
@@ -53,6 +54,38 @@ export default function HomePage() {
                         <button onClick={handlePlayAsGuest} className="btn btn-guest">
                             Play as Guest
                         </button>
+                    </div>
+                )}
+
+                {pendingInvitations.length > 0 && user && (
+                    <div className="invitations-section">
+                        <h3>🎮 Invitations de jeu ({pendingInvitations.length})</h3>
+                        <div className="invitations-list">
+                            {pendingInvitations.map((invitation) => (
+                                <div key={invitation.id} className="invitation-item">
+                                    <div className="invitation-info">
+                                        <span className="invitation-from">
+                                            {invitation.user?.username || 'Un ami'} vous invite
+                                        </span>
+                                        <span className="invitation-session">Session: {invitation.session_code}</span>
+                                    </div>
+                                    <div className="invitation-actions">
+                                        <button
+                                            onClick={() => handleAcceptInvitation(invitation.id, invitation.session_code)}
+                                            className="btn btn-accept"
+                                        >
+                                            ✓ Accepter
+                                        </button>
+                                        <button
+                                            onClick={() => handleRejectInvitation(invitation.id)}
+                                            className="btn btn-reject"
+                                        >
+                                            ✗ Refuser
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
 

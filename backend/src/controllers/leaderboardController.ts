@@ -67,6 +67,8 @@ export async function getUserScores(req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    // Get scores by user_id (for authenticated users)
+    // Note: Guest scores (user_id = null) won't be retrieved here
     const { data, error } = await supabase
       .from('scores')
       .select('*')

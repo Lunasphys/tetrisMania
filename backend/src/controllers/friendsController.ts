@@ -238,18 +238,17 @@ export async function searchUser(req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    // Search in profiles table by username or email
+    // Search in profiles table by username
     let query = supabase
       .from('profiles')
       .select('id, username')
       .neq('id', req.user.id); // Exclude current user
 
     if (username) {
+      // Use exact match first, then partial match
       query = query.ilike('username', `%${username}%`);
     }
 
-    // Also search in auth.users for email (if we have access)
-    // For now, we'll search profiles and return results
     const { data, error } = await query.limit(10);
 
     if (error) {
@@ -299,14 +298,28 @@ export async function sendFriendRequestByUsername(req: AuthRequest, res: Respons
       return;
     }
 
-    // Find user by username
+    // Find user by username (case-insensitive)
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id')
-      .eq('username', username)
-      .single();
+      .ilike('username', username)
+      .maybeSingle();
+    
+    // If no exact match, try partial match
+    let foundProfile = profile;
+    if (!foundProfile) {
+      const { data: partialMatches } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('username', `%${username}%`)
+        .limit(1);
+      
+      if (partialMatches && partialMatches.length > 0) {
+        foundProfile = partialMatches[0];
+      }
+    }
 
-    if (profileError || !profile) {
+    if (profileError || !foundProfile) {
       res.status(404).json({ 
         error: 'User not found',
         details: `No user found with username: ${username}`,
@@ -315,7 +328,7 @@ export async function sendFriendRequestByUsername(req: AuthRequest, res: Respons
       return;
     }
 
-    const to_user_id = profile.id;
+    const to_user_id = foundProfile.id;
 
     if (to_user_id === req.user.id) {
       res.status(400).json({ 
@@ -421,10 +434,13 @@ export async function getPendingRequests(req: AuthRequest, res: Response): Promi
         .in('id', userIds);
 
       if (!usersError && users) {
-        const requestsWithUsers = data.map(request => ({
-          ...request,
-          user: users.find(u => u.id === request.from_user_id)
-        }));
+        const requestsWithUsers = data.map(request => {
+          const user = users.find(u => u.id === request.from_user_id);
+          return {
+            ...request,
+            user: user || { id: request.from_user_id, username: null }
+          };
+        });
         res.json({ requests: requestsWithUsers });
         return;
       }

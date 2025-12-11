@@ -19,10 +19,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Users can view all profiles
+DROP POLICY IF EXISTS "Users can view profiles" ON public.profiles;
 CREATE POLICY "Users can view profiles" ON public.profiles
   FOR SELECT USING (true);
 
 -- Policy: Users can update their own profile
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
 
@@ -41,14 +43,17 @@ CREATE TABLE IF NOT EXISTS public.scores (
 ALTER TABLE public.scores ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Anyone can view scores
+DROP POLICY IF EXISTS "Anyone can view scores" ON public.scores;
 CREATE POLICY "Anyone can view scores" ON public.scores
   FOR SELECT USING (true);
 
 -- Policy: Anyone can insert scores
+DROP POLICY IF EXISTS "Anyone can insert scores" ON public.scores;
 CREATE POLICY "Anyone can insert scores" ON public.scores
   FOR INSERT WITH CHECK (true);
 
 -- Policy: Users can view their own scores
+DROP POLICY IF EXISTS "Users can view own scores" ON public.scores;
 CREATE POLICY "Users can view own scores" ON public.scores
   FOR SELECT USING (auth.uid() = user_id);
 
@@ -67,14 +72,17 @@ CREATE TABLE IF NOT EXISTS public.friend_requests (
 ALTER TABLE public.friend_requests ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Users can view their own friend requests
+DROP POLICY IF EXISTS "Users can view own friend requests" ON public.friend_requests;
 CREATE POLICY "Users can view own friend requests" ON public.friend_requests
   FOR SELECT USING (auth.uid() = from_user_id OR auth.uid() = to_user_id);
 
 -- Policy: Users can create friend requests
+DROP POLICY IF EXISTS "Users can create friend requests" ON public.friend_requests;
 CREATE POLICY "Users can create friend requests" ON public.friend_requests
   FOR INSERT WITH CHECK (auth.uid() = from_user_id);
 
 -- Policy: Users can update friend requests they received
+DROP POLICY IF EXISTS "Users can update received friend requests" ON public.friend_requests;
 CREATE POLICY "Users can update received friend requests" ON public.friend_requests
   FOR UPDATE USING (auth.uid() = to_user_id);
 
@@ -121,5 +129,46 @@ CREATE TRIGGER update_profiles_updated_at
 DROP TRIGGER IF EXISTS update_friend_requests_updated_at ON public.friend_requests;
 CREATE TRIGGER update_friend_requests_updated_at
   BEFORE UPDATE ON public.friend_requests
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- Game invitations table
+CREATE TABLE IF NOT EXISTS public.game_invitations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  from_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  to_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  session_code TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'expired')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable Row Level Security
+ALTER TABLE public.game_invitations ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Users can view their own game invitations
+DROP POLICY IF EXISTS "Users can view own game invitations" ON public.game_invitations;
+CREATE POLICY "Users can view own game invitations" ON public.game_invitations
+  FOR SELECT USING (auth.uid() = from_user_id OR auth.uid() = to_user_id);
+
+-- Policy: Users can create game invitations
+DROP POLICY IF EXISTS "Users can create game invitations" ON public.game_invitations;
+CREATE POLICY "Users can create game invitations" ON public.game_invitations
+  FOR INSERT WITH CHECK (auth.uid() = from_user_id);
+
+-- Policy: Users can update game invitations they received
+DROP POLICY IF EXISTS "Users can update received game invitations" ON public.game_invitations;
+CREATE POLICY "Users can update received game invitations" ON public.game_invitations
+  FOR UPDATE USING (auth.uid() = to_user_id);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_game_invitations_from_user ON public.game_invitations(from_user_id);
+CREATE INDEX IF NOT EXISTS idx_game_invitations_to_user ON public.game_invitations(to_user_id);
+CREATE INDEX IF NOT EXISTS idx_game_invitations_status ON public.game_invitations(status);
+CREATE INDEX IF NOT EXISTS idx_game_invitations_session_code ON public.game_invitations(session_code);
+
+-- Trigger for game_invitations updated_at
+DROP TRIGGER IF EXISTS update_game_invitations_updated_at ON public.game_invitations;
+CREATE TRIGGER update_game_invitations_updated_at
+  BEFORE UPDATE ON public.game_invitations
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 

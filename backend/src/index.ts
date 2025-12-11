@@ -8,6 +8,7 @@ import authRoutes from './routes/authRoutes';
 import sessionRoutes from './routes/sessionRoutes';
 import leaderboardRoutes from './routes/leaderboardRoutes';
 import friendsRoutes from './routes/friendsRoutes';
+import gameInvitationsRoutes from './routes/gameInvitationsRoutes';
 import { initializeGameSocket } from './websocket/gameSocket';
 
 dotenv.config();
@@ -33,6 +34,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/sessions', sessionRoutes);
 app.use('/api/v1/leaderboard', leaderboardRoutes);
 app.use('/api/v1/friends', friendsRoutes);
+app.use('/api/v1/game-invitations', gameInvitationsRoutes);
 
 // Initialize WebSocket
 initializeGameSocket(server);
