@@ -99,7 +99,8 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (id, username)
-  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)));
+  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)))
+  ON CONFLICT (id) DO UPDATE SET username = COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1));
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -109,6 +110,29 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Function to create missing profiles for existing users (run this once to fix existing users)
+CREATE OR REPLACE FUNCTION public.create_missing_profiles()
+RETURNS INTEGER AS $$
+DECLARE
+  created_count INTEGER := 0;
+BEGIN
+  INSERT INTO public.profiles (id, username)
+  SELECT 
+    u.id,
+    COALESCE(u.raw_user_meta_data->>'username', split_part(u.email, '@', 1))
+  FROM auth.users u
+  LEFT JOIN public.profiles p ON u.id = p.id
+  WHERE p.id IS NULL
+  ON CONFLICT (id) DO NOTHING;
+  
+  GET DIAGNOSTICS created_count = ROW_COUNT;
+  RETURN created_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Note: To create missing profiles for existing users, run:
+-- SELECT public.create_missing_profiles();
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
