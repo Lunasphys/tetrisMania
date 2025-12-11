@@ -48,13 +48,27 @@ export default function ProfilePage() {
   };
 
   const handleSearchUser = async () => {
-    if (!searchUsername.trim()) return;
+    if (!searchUsername.trim()) {
+      alert('Veuillez entrer un pseudo à rechercher');
+      return;
+    }
+    
+    console.log('[ProfilePage] Searching for:', searchUsername);
     setSearching(true);
+    setSearchResults([]); // Clear previous results
+    
     try {
       const results = await friendsService.searchUser(searchUsername);
+      console.log('[ProfilePage] Search results:', results);
       setSearchResults(results);
+      
+      if (results.length === 0) {
+        alert('Aucun utilisateur trouvé avec ce pseudo');
+      }
     } catch (error: any) {
-      alert(error.response?.data?.details || 'Erreur lors de la recherche');
+      console.error('[ProfilePage] Search error:', error);
+      const errorMessage = error.response?.data?.details || error.response?.data?.error || error.message || 'Erreur lors de la recherche';
+      alert(errorMessage);
     } finally {
       setSearching(false);
     }
@@ -226,9 +240,14 @@ export default function ProfilePage() {
               className="search-input"
             />
             <button 
-              onClick={handleSearchUser}
+              onClick={(e) => {
+                e.preventDefault();
+                console.log('[ProfilePage] Search button clicked, username:', searchUsername);
+                handleSearchUser();
+              }}
               disabled={searching || !searchUsername.trim()}
               className="search-button"
+              type="button"
             >
               {searching ? 'Recherche...' : '🔍 Rechercher'}
             </button>

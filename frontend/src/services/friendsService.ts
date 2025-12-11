@@ -53,7 +53,7 @@ export const friendsService = {
   },
 
   removeFriend: async (friendId: string): Promise<void> => {
-    await api.post('/friends/remove', { friend_id: friendId });
+    await api.delete('/friends/remove', { data: { friend_id: friendId } });
   },
 };
 

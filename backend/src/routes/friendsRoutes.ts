@@ -20,7 +20,7 @@ router.post('/refuse', requireAuth, refuseFriendRequest);
 router.get('/', requireAuth, getFriends);
 router.get('/pending', requireAuth, getPendingRequests);
 router.get('/search', requireAuth, searchUser);
-router.post('/remove', requireAuth, removeFriend);
+router.delete('/remove', requireAuth, removeFriend);
 
 export default router;
 
