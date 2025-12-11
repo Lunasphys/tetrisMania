@@ -4,6 +4,9 @@ import {
   getSession,
   leaveSession as leaveSessionService,
   updateSessionStatus,
+  setGameStartTime,
+  getGameStartTime,
+  getAllSessions,
 } from '../services/sessionService';
 import {
   createEmptyGrid,
@@ -20,6 +23,117 @@ import { supabase } from '../config/supabase';
 
 // Store player states in memory
 const playerStates = new Map<string, PlayerState>();
+
+// Game duration: 2 minutes in milliseconds
+const GAME_DURATION_MS = 2 * 60 * 1000; // 2 minutes
+
+/**
+ * End game and determine winner
+ */
+async function endGame(io: SocketIOServer, sessionCode: string, reason: 'timeout' | 'game_over'): Promise<void> {
+  const session = getSession(sessionCode);
+  if (!session || session.status !== 'playing') {
+    return; // Game already ended or not playing
+  }
+
+  updateSessionStatus(sessionCode, 'finished');
+
+  const player1State = session.player1_id ? playerStates.get(session.player1_id) : null;
+  const player2State = session.player2_id ? playerStates.get(session.player2_id) : null;
+
+  // Mark both players as game over if not already
+  if (player1State && !player1State.gameOver) {
+    player1State.gameOver = true;
+  }
+  if (player2State && !player2State.gameOver) {
+    player2State.gameOver = true;
+  }
+
+  // Determine winner based on score
+  let winner: 'player1' | 'player2' | 'tie' = 'tie';
+  let winnerScore = 0;
+  let loserScore = 0;
+
+  if (player1State && player2State) {
+    if (player1State.score > player2State.score) {
+      winner = 'player1';
+      winnerScore = player1State.score;
+      loserScore = player2State.score;
+    } else if (player2State.score > player1State.score) {
+      winner = 'player2';
+      winnerScore = player2State.score;
+      loserScore = player1State.score;
+    } else {
+      winner = 'tie';
+      winnerScore = player1State.score;
+      loserScore = player2State.score;
+    }
+  } else if (player1State) {
+    winner = 'player1';
+    winnerScore = player1State.score;
+  } else if (player2State) {
+    winner = 'player2';
+    winnerScore = player2State.score;
+  }
+
+  // Save scores to database
+  const savePromises: Promise<any>[] = [];
+
+  if (player1State && session.player1_id) {
+    savePromises.push(
+      supabase.from('scores').insert({
+        user_id: session.player1_id.startsWith('guest_') ? null : session.player1_id,
+        username: player1State.username,
+        score: player1State.score,
+        lines_cleared: player1State.linesCleared,
+        session_code: sessionCode,
+      }).then(({ error }) => {
+        if (error) {
+          console.error(`[WebSocket] Failed to save score for player1:`, error);
+        } else {
+          console.log(`[WebSocket] Saved score for player1: ${player1State.score}`);
+        }
+      })
+    );
+  }
+
+  if (player2State && session.player2_id) {
+    savePromises.push(
+      supabase.from('scores').insert({
+        user_id: session.player2_id.startsWith('guest_') ? null : session.player2_id,
+        username: player2State.username,
+        score: player2State.score,
+        lines_cleared: player2State.linesCleared,
+        session_code: sessionCode,
+      }).then(({ error }) => {
+        if (error) {
+          console.error(`[WebSocket] Failed to save score for player2:`, error);
+        } else {
+          console.log(`[WebSocket] Saved score for player2: ${player2State.score}`);
+        }
+      })
+    );
+  }
+
+  await Promise.all(savePromises);
+
+  // Send game finished event to all players
+  io.to(sessionCode).emit('game_finished', {
+    reason,
+    winner,
+    winnerScore,
+    loserScore,
+    player1Score: player1State?.score || 0,
+    player2Score: player2State?.score || 0,
+    player1Username: session.player1_username,
+    player2Username: session.player2_username,
+    player1LinesCleared: player1State?.linesCleared || 0,
+    player2LinesCleared: player2State?.linesCleared || 0,
+    session,
+  });
+
+  console.log(`[WebSocket] Game finished in session ${sessionCode}. Winner: ${winner}, Reason: ${reason}`);
+}
 
 /**
  * Initialize WebSocket server
@@ -341,17 +455,10 @@ export function initializeGameSocket(server: HTTPServer): SocketIOServer {
               // Check game over
               if (isGameOver(newState.grid) || !isValidPosition(newState.grid, newState.currentPiece)) {
                 newState.gameOver = true;
-                updateSessionStatus(sessionCode, 'finished');
-
-                // Save score to database
-                if (newState.score > 0) {
-                  supabase.from('scores').insert({
-                    user_id: playerId.startsWith('guest_') ? null : playerId,
-                    username: newState.username,
-                    score: newState.score,
-                    lines_cleared: newState.linesCleared,
-                    session_code: sessionCode,
-                  });
+                // End game if this player lost
+                const session = getSession(sessionCode);
+                if (session && session.status === 'playing') {
+                  endGame(io, sessionCode, 'game_over');
                 }
               }
             }
@@ -379,16 +486,10 @@ export function initializeGameSocket(server: HTTPServer): SocketIOServer {
 
             if (isGameOver(newState.grid) || !isValidPosition(newState.grid, newState.currentPiece)) {
               newState.gameOver = true;
-              updateSessionStatus(sessionCode, 'finished');
-
-              if (newState.score > 0) {
-                supabase.from('scores').insert({
-                  user_id: playerId.startsWith('guest_') ? null : playerId,
-                  username: newState.username,
-                  score: newState.score,
-                  lines_cleared: newState.linesCleared,
-                  session_code: sessionCode,
-                });
+              // End game if this player lost
+              const session = getSession(sessionCode);
+              if (session && session.status === 'playing') {
+                endGame(io, sessionCode, 'game_over');
               }
             }
           }
@@ -486,6 +587,29 @@ export function initializeGameSocket(server: HTTPServer): SocketIOServer {
       }
     });
   });
+
+  // Timer to check for game timeout (2 minutes)
+  setInterval(() => {
+    const allSessions = Array.from(new Map(Object.entries(require('../services/sessionService').getAllSessions?.() || [])).entries());
+    
+    // Get all playing sessions
+    const playingSessions = allSessions
+      .map(([code]) => {
+        const session = getSession(code);
+        return session && session.status === 'playing' ? session : null;
+      })
+      .filter(Boolean);
+
+    for (const session of playingSessions) {
+      if (!session) continue;
+      
+      const startTime = getGameStartTime(session.code);
+      if (startTime && Date.now() - startTime >= GAME_DURATION_MS) {
+        console.log(`[WebSocket] Game timeout in session ${session.code} (2 minutes elapsed)`);
+        endGame(io, session.code, 'timeout');
+      }
+    }
+  }, 1000); // Check every second
 
   return io;
 }

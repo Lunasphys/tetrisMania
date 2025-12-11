@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { gameService } from '../services/gameService';
+import { friendsService } from '../services/friendsService';
 import TetrisGrid from '../components/TetrisGrid';
 import Chat from '../components/Chat';
 import './GamePage.css';
@@ -16,6 +17,7 @@ export default function GamePage() {
     const [username, setUsername] = useState('');
     const [role, setRole] = useState<'player1' | 'player2' | null>(null);
     const [waitingForPlayer, setWaitingForPlayer] = useState(true);
+    const [sendingFriendRequest, setSendingFriendRequest] = useState(false);
     const initializingRef = useRef(false); // Prevent double initialization
 
     // Initialize game session
@@ -154,9 +156,9 @@ export default function GamePage() {
         initializeGame();
     }, [urlSessionCode, navigate]); // Minimal dependencies to prevent re-runs
 
-    // Connect WebSocket when ready
-    const { connected, gameState, opponentState, chatMessages, sessionInfo, sendMove, sendChatMessage, leaveSession, startGame } =
-        useWebSocket(sessionCode && playerId && username ? sessionCode : null, playerId, username);
+  // Connect WebSocket when ready
+  const { connected, gameState, opponentState, chatMessages, sessionInfo, gameResult, sendMove, sendChatMessage, leaveSession, startGame } =
+    useWebSocket(sessionCode && playerId && username ? sessionCode : null, playerId, username);
 
     // Update role and waiting state from session info
     useEffect(() => {
@@ -214,6 +216,30 @@ export default function GamePage() {
         }
         leaveSession();
         navigate('/');
+    };
+
+    const handleSendFriendRequest = async () => {
+        if (!user || !sessionInfo?.session) return;
+        
+        const opponentId = role === 'player1' 
+            ? sessionInfo.session.player2_id 
+            : sessionInfo.session.player1_id;
+        
+        if (!opponentId || opponentId.startsWith('guest_')) {
+            alert('Impossible d\'ajouter un invité en ami');
+            return;
+        }
+
+        setSendingFriendRequest(true);
+        try {
+            await friendsService.sendRequest(opponentId);
+            alert('Demande d\'ami envoyée !');
+        } catch (error: any) {
+            const message = error.response?.data?.details || error.message || 'Erreur lors de l\'envoi de la demande';
+            alert(message);
+        } finally {
+            setSendingFriendRequest(false);
+        }
     };
 
     if (!connected || !playerId || !sessionCode) {
@@ -279,7 +305,45 @@ export default function GamePage() {
                         </>
                     )}
 
-                    {waitingForPlayer && (
+                    {gameResult && (
+                        <div className="game-result-screen">
+                            <h2>
+                                {gameResult.winner === 'tie' ? '🤝 Match nul !' :
+                                 gameResult.winner === role ? '🎉 Vous avez gagné !' :
+                                 '😔 Vous avez perdu'}
+                            </h2>
+                            <div className="result-details">
+                                <p className="result-reason">
+                                    {gameResult.reason === 'timeout' ? '⏱️ Temps écoulé (2 minutes)' : '🎮 Game Over'}
+                                </p>
+                                <div className="scores-comparison">
+                                    <div className={`player-score ${gameResult.winner === 'player1' ? 'winner' : ''}`}>
+                                        <h3>{gameResult.player1Username || 'Player 1'}</h3>
+                                        <p className="score-value">{gameResult.player1Score.toLocaleString()}</p>
+                                        <p className="lines-value">{gameResult.player1LinesCleared} lignes</p>
+                                    </div>
+                                    <div className="vs-divider">VS</div>
+                                    <div className={`player-score ${gameResult.winner === 'player2' ? 'winner' : ''}`}>
+                                        <h3>{gameResult.player2Username || 'Player 2'}</h3>
+                                        <p className="score-value">{gameResult.player2Score.toLocaleString()}</p>
+                                        <p className="lines-value">{gameResult.player2LinesCleared} lignes</p>
+                                    </div>
+                                </div>
+                                <p className="result-message">
+                                    {gameResult.winner === 'tie' 
+                                        ? 'Les deux joueurs ont le même score !'
+                                        : gameResult.winner === role
+                                        ? `Félicitations ! Vous avez gagné avec ${gameResult.winnerScore.toLocaleString()} points !`
+                                        : `Le gagnant est ${gameResult.winner === 'player1' ? gameResult.player1Username : gameResult.player2Username} avec ${gameResult.winnerScore.toLocaleString()} points.`}
+                                </p>
+                                <button onClick={handleLeave} className="leave-button">
+                                    Retour à l'accueil
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {!gameResult && waitingForPlayer && (
                         <div className="waiting-screen">
                             <h2>
                                 {sessionInfo?.bothPlayersConnected
@@ -324,6 +388,28 @@ export default function GamePage() {
                             <div>Space Hard Drop</div>
                         </div>
                     </div>
+
+                    {sessionInfo?.session && !waitingForPlayer && user && (
+                        <div className="opponent-actions">
+                            <h3>Adversaire</h3>
+                            <p className="opponent-name">
+                                {role === 'player1' 
+                                    ? sessionInfo.session.player2_username 
+                                    : sessionInfo.session.player1_username}
+                            </p>
+                            {(role === 'player1' ? sessionInfo.session.player2_id : sessionInfo.session.player1_id)?.startsWith('guest_') ? (
+                                <p className="guest-notice">Invité - ne peut pas être ajouté en ami</p>
+                            ) : (
+                                <button 
+                                    onClick={handleSendFriendRequest}
+                                    disabled={sendingFriendRequest || !connected}
+                                    className="add-friend-button"
+                                >
+                                    {sendingFriendRequest ? 'Envoi...' : '➕ Demander en ami'}
+                                </button>
+                            )}
+                        </div>
+                    )}
 
                     <Chat messages={chatMessages} onSendMessage={sendChatMessage} disabled={!connected} />
                 </div>

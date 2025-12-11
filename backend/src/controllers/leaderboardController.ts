@@ -36,16 +36,30 @@ export async function getUserScores(req: AuthRequest, res: Response): Promise<vo
     if (!req.user) {
       res.status(401).json({ 
         error: 'Authentication required',
-        details: 'You must be logged in to view your score history',
+        details: 'You must be logged in to view score history',
         code: 'AUTHENTICATION_REQUIRED'
       });
       return;
     }
 
-    if (req.user.id !== id) {
+    // Allow viewing own scores or friend's scores
+    const isOwnProfile = req.user.id === id;
+    
+    // Check if viewing friend's profile
+    let isFriend = false;
+    if (!isOwnProfile) {
+      const { data: friendRequest } = await supabase
+        .from('friend_requests')
+        .select('*')
+        .or(`and(from_user_id.eq.${req.user.id},to_user_id.eq.${id},status.eq.accepted),and(from_user_id.eq.${id},to_user_id.eq.${req.user.id},status.eq.accepted)`)
+        .single();
+      isFriend = !!friendRequest;
+    }
+
+    if (!isOwnProfile && !isFriend) {
       res.status(403).json({ 
         error: 'Access denied',
-        details: `You can only view your own scores. You tried to access scores for user ID: ${id}, but you are logged in as: ${req.user.id}`,
+        details: `You can only view your own scores or your friends' scores. You tried to access scores for user ID: ${id}`,
         code: 'ACCESS_DENIED',
         requestedUserId: id,
         yourUserId: req.user.id

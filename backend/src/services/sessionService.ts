@@ -118,3 +118,22 @@ export function updateSessionStatus(code: string, status: GameSession['status'])
   }
 }
 
+/**
+ * Set game start time
+ */
+export function setGameStartTime(code: string, startTime: number): void {
+  const session = sessions.get(code);
+  if (session) {
+    session.gameStartTime = startTime;
+    session.updated_at = new Date().toISOString();
+  }
+}
+
+/**
+ * Get game start time
+ */
+export function getGameStartTime(code: string): number | undefined {
+  const session = sessions.get(code);
+  return session?.gameStartTime;
+}
+

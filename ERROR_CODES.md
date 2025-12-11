@@ -10,8 +10,7 @@ All errors follow this format:
 {
   "error": "Human-readable error message",
   "details": "Detailed explanation of what went wrong",
-  "code": "ERROR_CODE",
-  // Additional context fields may be present
+  "code": "ERROR_CODE"
 }
 ```
 

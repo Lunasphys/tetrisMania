@@ -39,6 +39,7 @@ export function useWebSocket(sessionCode: string | null, playerId: string | null
   const [opponentState, setOpponentState] = useState<GameState | null>(null);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [sessionInfo, setSessionInfo] = useState<any>(null);
+  const [gameResult, setGameResult] = useState<any>(null);
 
   useEffect(() => {
     if (!sessionCode || !playerId || !username) return;
@@ -72,6 +73,13 @@ export function useWebSocket(sessionCode: string | null, playerId: string | null
 
     socket.on('game_started', (data) => {
       console.log('Game started:', data);
+      setSessionInfo((prev: any) => ({ ...prev, waiting: false }));
+      setGameResult(null); // Reset game result when new game starts
+    });
+
+    socket.on('game_finished', (data) => {
+      console.log('Game finished:', data);
+      setGameResult(data);
       setSessionInfo((prev: any) => ({ ...prev, waiting: false }));
     });
 
@@ -149,6 +157,7 @@ export function useWebSocket(sessionCode: string | null, playerId: string | null
     opponentState,
     chatMessages,
     sessionInfo,
+    gameResult,
     sendMove,
     sendChatMessage,
     leaveSession,

@@ -18,6 +18,7 @@ export interface GameSession {
   status: 'waiting' | 'playing' | 'finished';
   created_at: string;
   updated_at: string;
+  gameStartTime?: number; // Timestamp when game started (for 2-minute timer)
 }
 
 export interface PlayerState {
