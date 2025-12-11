@@ -61,6 +61,8 @@ JWT_SECRET=your_jwt_secret_key
 FRONTEND_URL=http://localhost:5173
 ```
 
+**Important**: The `SUPABASE_SERVICE_ROLE_KEY` is required for backend operations. It bypasses Row Level Security (RLS) policies, which is necessary since the backend validates authentication through middleware before database operations.
+
 ### 4. Frontend Configuration
 
 Create `frontend/.env`:
@@ -96,16 +98,28 @@ The application will be available at:
 ### Game Features
 - **1v1 Tetris Battle**: Play Tetris against another player in real-time
 - **Session System**: Create or join games with 6-character session codes
-- **Spectator Mode**: Up to 2 players per session, others become spectators
+- **2 Players Only**: Each session supports exactly 2 players (no spectators)
+- **Manual Start**: Player 1 must click "Start Game" after both players connect
+- **Game Duration**: 2-minute time limit per game
+- **Victory Conditions**: Win by having the highest score when opponent loses or time runs out
 - **Real-time Sync**: WebSocket synchronization of game state
 - **Chat**: Real-time chat within game sessions
+- **Auto Score Saving**: Scores automatically saved to leaderboard when game ends
 
 ### User Features
 - **Authentication**: Sign up, login, logout with Supabase Auth
 - **Guest Mode**: Play without an account
 - **Profile**: View your scores and friends
 - **Leaderboard**: Global and personal score rankings
-- **Friends System**: Send/accept friend requests
+- **Friends System**: 
+  - Send/accept/refuse friend requests
+  - Search users by username (searches in `profiles.username` - the username set during signup)
+  - Send friend requests by username (partial, case-insensitive matching)
+  - View friend profiles with their scores
+  - Remove friends
+- **Game Invitations**: Invite friends to join your game session
+
+**Note on Usernames**: The friend search uses the username stored in `profiles.username`, which is set during account creation. This may differ from the display name used in-game (which can be the email prefix or a guest username).
 
 ## 🧪 Testing
 
@@ -178,10 +192,20 @@ tetrisMania/
 - `POST /api/v1/leaderboard` - Save score
 
 ### Friends
-- `POST /api/v1/friends/request` - Send friend request
+- `POST /api/v1/friends/request` - Send friend request by user ID
+- `POST /api/v1/friends/request-by-username` - Send friend request by username
 - `POST /api/v1/friends/accept` - Accept request
 - `POST /api/v1/friends/refuse` - Refuse request
 - `GET /api/v1/friends` - Get friends list
+- `GET /api/v1/friends/pending` - Get pending friend requests
+- `GET /api/v1/friends/search?username=...` - Search users by username
+- `DELETE /api/v1/friends/remove` - Remove a friend
+
+### Game Invitations
+- `POST /api/v1/game-invitations/send` - Send game invitation to a friend
+- `GET /api/v1/game-invitations/pending` - Get pending game invitations
+- `POST /api/v1/game-invitations/accept` - Accept game invitation
+- `POST /api/v1/game-invitations/reject` - Reject game invitation
 
 Full API documentation available at `/api-docs` when server is running.
 
@@ -189,14 +213,17 @@ Full API documentation available at `/api-docs` when server is running.
 
 ### Client → Server
 - `join_session` - Join a game session
+- `start_game` - Start the game (only player1 can emit this)
 - `player_move` - Send game move (left, right, rotate, down, drop)
 - `chat_message` - Send chat message
 - `leave_session` - Leave session
 
 ### Server → Client
 - `session_info` - Session information
-- `game_state` - Initial game state
-- `state_update` - Game state update
+- `both_players_ready` - Emitted when both players are connected (game not started yet)
+- `game_started` - Emitted when player1 starts the game
+- `game_state` - Game state update (contains full PlayerState)
+- `game_finished` - Game ended (contains winner, scores, reason)
 - `chat_message` - New chat message
 - `player_joined` - Player joined notification
 - `player_left` - Player left notification
@@ -205,9 +232,10 @@ Full API documentation available at `/api-docs` when server is running.
 ## 🗄️ Database Schema
 
 See `supabase/schema.sql` for the complete database schema. Main tables:
-- `users` - User profiles (managed by Supabase Auth)
+- `profiles` - User profiles (extends Supabase Auth users)
 - `scores` - Game scores
 - `friend_requests` - Friend request system
+- `game_invitations` - Game invitation system
 
 ## 🎨 Game Controls
 
@@ -236,9 +264,14 @@ See `supabase/schema.sql` for the complete database schema. Main tables:
 ## Notes
 
 - Sessions are stored in-memory (use Redis for production)
-- Guest users cannot use friends/leaderboard features
+- Guest users cannot use friends/leaderboard/invitations features
 - Game state is synchronized via WebSocket
-- Scores are saved to Supabase database
+- Scores are automatically saved to Supabase database when game ends
+- Game duration is 2 minutes - game ends automatically on timeout
+- Winner is determined by highest score (or tie if equal scores)
+- Only player1 (session creator) can invite friends to the session
+- **Row Level Security (RLS)**: Backend uses `SUPABASE_SERVICE_ROLE_KEY` to bypass RLS policies. Authentication is validated in middleware before database operations.
+- **Username Search**: Friend search uses `profiles.username` (set during signup), not the in-game display name
 
 ## Production Deployment
 

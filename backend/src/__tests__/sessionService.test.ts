@@ -37,17 +37,16 @@ describe('Session Service', () => {
 
       const updatedSession = getSession(session.code);
       expect(updatedSession?.player2_id).toBe('player2');
-      expect(updatedSession?.status).toBe('playing');
+      expect(updatedSession?.status).toBe('waiting'); // Status remains 'waiting' until game starts
     });
 
-    it('should assign spectator role when 2 players already exist', () => {
+    it('should throw error when session is full (2 players already exist)', () => {
       const session = createSession('player1', 'Player1');
       joinSession(session.code, 'player2', 'Player2');
-      const { role } = joinSession(session.code, 'player3', 'Player3');
-      expect(role).toBe('spectator');
-
-      const updatedSession = getSession(session.code);
-      expect(updatedSession?.spectators).toContain('player3');
+      
+      expect(() => {
+        joinSession(session.code, 'player3', 'Player3');
+      }).toThrow('Session is full');
     });
 
     it('should return existing role if player already in session', () => {
@@ -79,13 +78,13 @@ describe('Session Service', () => {
       expect(updatedSession?.player2_id).toBeNull();
     });
 
-    it('should remove spectator from session', () => {
+    it('should reset status to waiting when player2 leaves', () => {
       const session = createSession('player1', 'Player1');
       joinSession(session.code, 'player2', 'Player2');
-      joinSession(session.code, 'player3', 'Player3');
-      leaveSession(session.code, 'player3');
+      leaveSession(session.code, 'player2');
       const updatedSession = getSession(session.code);
-      expect(updatedSession?.spectators).not.toContain('player3');
+      expect(updatedSession?.player2_id).toBeNull();
+      expect(updatedSession?.status).toBe('waiting');
     });
 
     it('should delete session when all players leave', () => {

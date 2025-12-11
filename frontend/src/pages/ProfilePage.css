@@ -242,21 +242,39 @@
 
 .search-results {
   margin-top: 20px;
+  padding: 15px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
 }
 
 .search-results h3 {
   color: #4ecdc4;
   margin-bottom: 15px;
+  font-size: 1.1rem;
 }
 
 .search-result-item {
   padding: 12px;
+  margin-bottom: 8px;
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   color: #fff;
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.result-username {
+  color: #fff;
+  font-weight: 500;
+}
+
+.no-results {
+  color: #aaa;
+  font-style: italic;
+  text-align: center;
+  padding: 10px;
+}
   margin-bottom: 10px;
 }
 

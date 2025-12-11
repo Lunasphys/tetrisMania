@@ -174,6 +174,14 @@ All errors follow this format:
 
 ---
 
+### `SESSION_FULL`
+**Status:** `400`  
+**Message:** "Session is full"  
+**Details:** Session already has 2 players, cannot join  
+**Solution:** Create a new session or wait for a player to leave
+
+---
+
 ### `SESSION_GET_ERROR`
 **Status:** `500`  
 **Message:** "Failed to retrieve session"  
@@ -260,6 +268,144 @@ All errors follow this format:
 **Message:** "Failed to fetch friend details"  
 **Details:** Database error while retrieving friend user information  
 **Solution:** Check backend logs
+
+---
+
+### `MISSING_USERNAME`
+**Status:** `400`  
+**Message:** "Username is required"  
+**Details:** Username not provided for friend request by username  
+**Solution:** Include `username` in request body
+
+---
+
+### `USER_NOT_FOUND`
+**Status:** `404`  
+**Message:** "User not found"  
+**Details:** No user found with the provided username  
+**Solution:** Verify username is correct, check for typos
+
+---
+
+### `MISSING_SEARCH_PARAM`
+**Status:** `400`  
+**Message:** "Search parameter required"  
+**Details:** Username or email not provided for search  
+**Solution:** Include `username` or `email` query parameter
+
+---
+
+### `USER_SEARCH_ERROR`
+**Status:** `500`  
+**Message:** "Failed to search users"  
+**Details:** Database error while searching for users  
+**Solution:** Check backend logs
+
+---
+
+### `FRIEND_REMOVE_ERROR`
+**Status:** `500`  
+**Message:** "Failed to remove friend"  
+**Details:** Database error while removing friend relationship  
+**Solution:** Check backend logs
+
+---
+
+## 🎮 Game Invitations Errors
+
+### `MISSING_SESSION_CODE`
+**Status:** `400`  
+**Message:** "Session code is required"  
+**Details:** Session code not provided for game invitation  
+**Solution:** Include `session_code` in request body
+
+---
+
+### `NOT_SESSION_CREATOR`
+**Status:** `403`  
+**Message:** "Not authorized"  
+**Details:** Only the session creator (player1) can invite friends  
+**Solution:** Only player1 can send invitations
+
+---
+
+### `CANNOT_INVITE_SELF`
+**Status:** `400`  
+**Message:** "Cannot invite yourself"  
+**Details:** Attempted to send game invitation to yourself  
+**Solution:** Invite a different user
+
+---
+
+### `INVITATION_EXISTS`
+**Status:** `400`  
+**Message:** "Invitation already sent"  
+**Details:** A pending invitation already exists for this user and session  
+**Solution:** Wait for the existing invitation to be accepted or rejected
+
+---
+
+### `INVITATION_CREATE_ERROR`
+**Status:** `500`  
+**Message:** "Failed to send game invitation"  
+**Details:** Database error while creating invitation  
+**Solution:** Check backend logs
+
+---
+
+### `INVITATIONS_FETCH_ERROR`
+**Status:** `500`  
+**Message:** "Failed to fetch invitations"  
+**Details:** Database error while retrieving invitations  
+**Solution:** Check backend logs
+
+---
+
+### `MISSING_INVITATION_ID`
+**Status:** `400`  
+**Message:** "Invitation ID is required"  
+**Details:** Invitation ID not provided  
+**Solution:** Include `invitation_id` in request body
+
+---
+
+### `INVITATION_NOT_FOUND`
+**Status:** `404`  
+**Message:** "Invitation not found"  
+**Details:** No pending invitation found with provided ID  
+**Solution:** Verify invitation ID, check if already processed
+
+---
+
+### `SESSION_EXPIRED`
+**Status:** `404`  
+**Message:** "Session expired"  
+**Details:** The game session for this invitation no longer exists  
+**Solution:** The invitation will be marked as expired automatically
+
+---
+
+### `INVITATION_ACCEPT_ERROR`
+**Status:** `500`  
+**Message:** "Failed to accept invitation"  
+**Details:** Database error while accepting invitation  
+**Solution:** Check backend logs
+
+---
+
+### `INVITATION_REJECT_ERROR`
+**Status:** `500`  
+**Message:** "Failed to reject invitation"  
+**Details:** Database error while rejecting invitation  
+**Solution:** Check backend logs
+
+---
+
+### `SESSION_FULL`
+**Status:** `400`  
+**Message:** "Session is full"  
+**Details:** Session already has 2 players, cannot join  
+**Solution:** Create a new session or wait for a player to leave
 
 ---
 

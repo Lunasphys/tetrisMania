@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { supabase } from '../config/supabase';
+import { supabase, supabaseAdmin } from '../config/supabase';
 import { getSession } from '../services/sessionService';
 
 /**
@@ -67,8 +67,11 @@ export async function sendGameInvitation(req: AuthRequest, res: Response): Promi
       return;
     }
 
+    // Use admin client to bypass RLS (since we've already validated auth in middleware)
+    const clientToUse = supabaseAdmin || supabase;
+    
     // Check if invitation already exists
-    const { data: existing } = await supabase
+    const { data: existing } = await clientToUse
       .from('game_invitations')
       .select('*')
       .eq('from_user_id', req.user.id)
@@ -86,7 +89,7 @@ export async function sendGameInvitation(req: AuthRequest, res: Response): Promi
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await clientToUse
       .from('game_invitations')
       .insert({
         from_user_id: req.user.id,
@@ -133,7 +136,10 @@ export async function getPendingInvitations(req: AuthRequest, res: Response): Pr
       return;
     }
 
-    const { data, error } = await supabase
+    // Use admin client to bypass RLS (since we've already validated auth in middleware)
+    const clientToUse = supabaseAdmin || supabase;
+    
+    const { data, error } = await clientToUse
       .from('game_invitations')
       .select('id, from_user_id, session_code, created_at')
       .eq('to_user_id', req.user.id)
@@ -154,7 +160,7 @@ export async function getPendingInvitations(req: AuthRequest, res: Response): Pr
     // Get user details for each invitation
     if (data && data.length > 0) {
       const userIds = data.map(inv => inv.from_user_id);
-      const { data: users, error: usersError } = await supabase
+      const { data: users, error: usersError } = await clientToUse
         .from('profiles')
         .select('id, username')
         .in('id', userIds);
@@ -208,7 +214,10 @@ export async function acceptGameInvitation(req: AuthRequest, res: Response): Pro
       return;
     }
 
-    const { data: invitation, error: fetchError } = await supabase
+    // Use admin client to bypass RLS (since we've already validated auth in middleware)
+    const clientToUse = supabaseAdmin || supabase;
+    
+    const { data: invitation, error: fetchError } = await clientToUse
       .from('game_invitations')
       .select('*')
       .eq('id', invitation_id)
@@ -230,7 +239,7 @@ export async function acceptGameInvitation(req: AuthRequest, res: Response): Pro
     const session = getSession(invitation.session_code);
     if (!session) {
       // Mark invitation as expired
-      await supabase
+      await clientToUse
         .from('game_invitations')
         .update({ status: 'expired' })
         .eq('id', invitation_id);
@@ -244,7 +253,7 @@ export async function acceptGameInvitation(req: AuthRequest, res: Response): Pro
     }
 
     // Update invitation status
-    const { error } = await supabase
+    const { error } = await clientToUse
       .from('game_invitations')
       .update({ status: 'accepted' })
       .eq('id', invitation_id);
@@ -299,7 +308,10 @@ export async function rejectGameInvitation(req: AuthRequest, res: Response): Pro
       return;
     }
 
-    const { error } = await supabase
+    // Use admin client to bypass RLS (since we've already validated auth in middleware)
+    const clientToUse = supabaseAdmin || supabase;
+    
+    const { error } = await clientToUse
       .from('game_invitations')
       .update({ status: 'rejected' })
       .eq('id', invitation_id)

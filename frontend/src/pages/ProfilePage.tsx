@@ -48,22 +48,30 @@ export default function ProfilePage() {
   };
 
   const handleSearchUser = async () => {
-    if (!searchUsername.trim()) {
+    const trimmedUsername = searchUsername.trim();
+    if (!trimmedUsername) {
       alert('Veuillez entrer un pseudo à rechercher');
       return;
     }
     
-    console.log('[ProfilePage] Searching for:', searchUsername);
+    // Minimum 2 characters for search
+    if (trimmedUsername.length < 2) {
+      alert('Veuillez entrer au moins 2 caractères pour la recherche');
+      return;
+    }
+    
+    console.log('[ProfilePage] Searching for:', trimmedUsername);
     setSearching(true);
     setSearchResults([]); // Clear previous results
     
     try {
-      const results = await friendsService.searchUser(searchUsername);
+      const results = await friendsService.searchUser(trimmedUsername);
       console.log('[ProfilePage] Search results:', results);
       setSearchResults(results);
       
       if (results.length === 0) {
-        alert('Aucun utilisateur trouvé avec ce pseudo');
+        // Don't show alert, just show empty state in UI
+        console.log('[ProfilePage] No users found');
       }
     } catch (error: any) {
       console.error('[ProfilePage] Search error:', error);
@@ -252,12 +260,17 @@ export default function ProfilePage() {
               {searching ? 'Recherche...' : '🔍 Rechercher'}
             </button>
           </div>
-          {searchResults.length > 0 && (
+          {searching && (
             <div className="search-results">
-              <h3>Résultats de recherche</h3>
+              <p style={{ color: '#aaa', textAlign: 'center' }}>Recherche en cours...</p>
+            </div>
+          )}
+          {!searching && searchResults.length > 0 && (
+            <div className="search-results">
+              <h3>Résultats de recherche ({searchResults.length})</h3>
               {searchResults.map((user) => (
                 <div key={user.id} className="search-result-item">
-                  <span>{user.username || 'Sans pseudo'}</span>
+                  <span className="result-username">{user.username || 'Sans pseudo'}</span>
                   <button 
                     onClick={() => handleSendRequestByUsername(user.username || '')}
                     className="send-request-button"
@@ -266,6 +279,11 @@ export default function ProfilePage() {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+          {!searching && searchResults.length === 0 && searchUsername.trim().length >= 2 && (
+            <div className="search-results">
+              <p className="no-results">Aucun utilisateur trouvé avec "{searchUsername}"</p>
             </div>
           )}
         </div>

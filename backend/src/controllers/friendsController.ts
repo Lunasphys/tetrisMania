@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { supabase } from '../config/supabase';
+import { supabase, supabaseAdmin } from '../config/supabase';
 
 /**
  * Send a friend request
@@ -115,7 +115,10 @@ export async function acceptFriendRequest(req: AuthRequest, res: Response): Prom
       return;
     }
 
-    const { data: request, error: fetchError } = await supabase
+    // Use admin client to bypass RLS (since we've already validated auth in middleware)
+    const clientToUse = supabaseAdmin || supabase;
+    
+    const { data: request, error: fetchError } = await clientToUse
       .from('friend_requests')
       .select('*')
       .eq('id', request_id)
@@ -133,7 +136,7 @@ export async function acceptFriendRequest(req: AuthRequest, res: Response): Prom
       return;
     }
 
-    const { error } = await supabase
+    const { error } = await clientToUse
       .from('friend_requests')
       .update({ status: 'accepted' })
       .eq('id', request_id);
@@ -185,7 +188,10 @@ export async function refuseFriendRequest(req: AuthRequest, res: Response): Prom
       return;
     }
 
-    const { error } = await supabase
+    // Use admin client to bypass RLS (since we've already validated auth in middleware)
+    const clientToUse = supabaseAdmin || supabase;
+    
+    const { error } = await clientToUse
       .from('friend_requests')
       .update({ status: 'rejected' })
       .eq('id', request_id)
@@ -238,18 +244,29 @@ export async function searchUser(req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    // Search in profiles table by username
-    let query = supabase
+    // Use admin client to bypass RLS (since we've already validated auth in middleware)
+    const clientToUse = supabaseAdmin || supabase;
+    
+    // Search in profiles table by username (case-insensitive, partial match)
+    let query = clientToUse
       .from('profiles')
       .select('id, username')
-      .neq('id', req.user.id); // Exclude current user
+      .neq('id', req.user.id) // Exclude current user
+      .not('username', 'is', null); // Exclude users without username
 
     if (username) {
-      // Use exact match first, then partial match
+      // Use partial match (starts with or contains)
+      // This will match: "davy" -> "davy.marthely", "davymarthely", etc.
       query = query.ilike('username', `%${username}%`);
     }
 
     const { data, error } = await query.limit(10);
+    
+    console.log('[FriendsController] Search query:', username);
+    console.log('[FriendsController] Search results count:', data?.length || 0);
+    if (data && data.length > 0) {
+      console.log('[FriendsController] Found users:', data.map(u => u.username));
+    }
 
     if (error) {
       console.error('[FriendsController] Error searching users:', error);
@@ -298,8 +315,11 @@ export async function sendFriendRequestByUsername(req: AuthRequest, res: Respons
       return;
     }
 
+    // Use admin client to bypass RLS (since we've already validated auth in middleware)
+    const clientToUse = supabaseAdmin || supabase;
+    
     // Find user by username (case-insensitive)
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await clientToUse
       .from('profiles')
       .select('id')
       .ilike('username', username)
@@ -308,7 +328,7 @@ export async function sendFriendRequestByUsername(req: AuthRequest, res: Respons
     // If no exact match, try partial match
     let foundProfile = profile;
     if (!foundProfile) {
-      const { data: partialMatches } = await supabase
+      const { data: partialMatches } = await clientToUse
         .from('profiles')
         .select('id')
         .ilike('username', `%${username}%`)
@@ -407,7 +427,10 @@ export async function getPendingRequests(req: AuthRequest, res: Response): Promi
       return;
     }
 
-    const { data, error } = await supabase
+    // Use admin client to bypass RLS (since we've already validated auth in middleware)
+    const clientToUse = supabaseAdmin || supabase;
+    
+    const { data, error } = await clientToUse
       .from('friend_requests')
       .select('id, from_user_id, created_at')
       .eq('to_user_id', req.user.id)
@@ -428,7 +451,7 @@ export async function getPendingRequests(req: AuthRequest, res: Response): Promi
     // Get user details for each request
     if (data && data.length > 0) {
       const userIds = data.map(r => r.from_user_id);
-      const { data: users, error: usersError } = await supabase
+      const { data: users, error: usersError } = await clientToUse
         .from('profiles')
         .select('id, username')
         .in('id', userIds);
@@ -524,7 +547,10 @@ export async function getFriends(req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const { data, error } = await supabase
+    // Use admin client to bypass RLS (since we've already validated auth in middleware)
+    const clientToUse = supabaseAdmin || supabase;
+    
+    const { data, error } = await clientToUse
       .from('friend_requests')
       .select('*')
       .or(`and(from_user_id.eq.${req.user.id},status.eq.accepted),and(to_user_id.eq.${req.user.id},status.eq.accepted)`);
@@ -551,7 +577,8 @@ export async function getFriends(req: AuthRequest, res: Response): Promise<void>
     }
 
     // Get friend user details from profiles table
-    const { data: users, error: usersError } = await supabase
+    const clientToUse = supabaseAdmin || supabase;
+    const { data: users, error: usersError } = await clientToUse
       .from('profiles')
       .select('id, username')
       .in('id', friends);

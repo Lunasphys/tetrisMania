@@ -21,6 +21,8 @@ Most endpoints support both authenticated users and guests. When authenticated, 
 Authorization: Bearer <supabase_jwt_token>
 ```
 
+**Backend Security**: The backend uses `SUPABASE_SERVICE_ROLE_KEY` to bypass Row Level Security (RLS) policies. Authentication is validated in middleware (`requireAuth` or `optionalAuth`) before any database operations, ensuring security while allowing the backend to perform necessary queries.
+
 ---
 
 ## 📡 REST API Endpoints
@@ -252,7 +254,8 @@ Join an existing session.
 **Possible roles:**
 - `player1` - First player (session creator)
 - `player2` - Second player
-- `spectator` - More than 2 players joined
+
+**Note:** Sessions are limited to 2 players. If a session is full, joining will return an error.
 
 **Important:** Save the `playerId` and `role` returned - you'll need them!
 
@@ -466,7 +469,6 @@ Authorization: Bearer <token>
   "friends": [
     {
       "id": "user-uuid",
-      "email": "friend@example.com",
       "username": "FriendName"
     }
   ]
@@ -474,6 +476,282 @@ Authorization: Bearer <token>
 ```
 
 **Error Responses:**
+- `401` - Authentication required
+
+---
+
+#### `GET /api/v1/friends/pending`
+Get pending friend requests received (requires auth).
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Response (200):**
+```json
+{
+  "requests": [
+    {
+      "id": "request-uuid",
+      "from_user_id": "user-uuid",
+      "created_at": "2024-01-15T10:30:00.000Z",
+      "user": {
+        "id": "user-uuid",
+        "username": "SenderName"
+      }
+    }
+  ]
+}
+```
+
+**Error Responses:**
+- `401` - Authentication required
+
+---
+
+#### `GET /api/v1/friends/search?username=...`
+Search users by username (requires auth).
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Query Parameters:**
+- `username` (required) - Username to search for (case-insensitive, partial match, minimum 2 characters recommended)
+
+**Example:**
+```
+GET /api/v1/friends/search?username=john
+```
+
+**Response (200):**
+```json
+{
+  "users": [
+    {
+      "id": "user-uuid",
+      "username": "john_doe"
+    }
+  ]
+}
+```
+
+**Important Notes:**
+- **Searches in `profiles.username`** (the username set during account creation/signup), **not** the in-game display name
+- Supports partial matching (e.g., searching "davy" will find "davy.marthely")
+- Case-insensitive search
+- Excludes users without a username and the current user
+- Minimum 2 characters recommended for meaningful results
+
+**Error Responses:**
+- `400` - Search parameter required
+- `401` - Authentication required
+
+---
+
+#### `POST /api/v1/friends/request-by-username`
+Send a friend request by username (requires auth).
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+```json
+{
+  "username": "target_username"
+}
+```
+
+**Response (201):**
+```json
+{
+  "message": "Friend request sent",
+  "request": {
+    "id": "request-uuid",
+    "from_user_id": "your-user-id",
+    "to_user_id": "target-user-id",
+    "status": "pending",
+    "created_at": "2024-01-15T10:30:00.000Z"
+  }
+}
+```
+
+**Important Notes:**
+- **Searches in `profiles.username`** (the username set during account creation/signup), **not** the in-game display name
+- Supports exact match first, then partial match if no exact match found
+- Case-insensitive matching
+
+**Error Responses:**
+- `400` - Username is required
+- `404` - User not found
+- `400` - Cannot send request to yourself
+- `400` - Friend request already exists
+- `401` - Authentication required
+
+---
+
+#### `DELETE /api/v1/friends/remove`
+Remove a friend (requires auth).
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+```json
+{
+  "friend_id": "user-uuid"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Friend removed"
+}
+```
+
+**Error Responses:**
+- `400` - Friend ID is required
+- `404` - Friend relationship not found
+- `401` - Authentication required
+
+---
+
+### Game Invitations
+
+#### `POST /api/v1/game-invitations/send`
+Send a game invitation to a friend (requires auth). Only the session creator (player1) can send invitations.
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+```json
+{
+  "to_user_id": "friend-user-uuid",
+  "session_code": "ABC123"
+}
+```
+
+**Response (201):**
+```json
+{
+  "message": "Game invitation sent",
+  "invitation": {
+    "id": "invitation-uuid",
+    "from_user_id": "your-user-id",
+    "to_user_id": "friend-user-uuid",
+    "session_code": "ABC123",
+    "status": "pending",
+    "created_at": "2024-01-15T10:30:00.000Z"
+  }
+}
+```
+
+**Error Responses:**
+- `400` - User ID or session code is required
+- `404` - Session not found
+- `403` - Only the session creator can invite friends
+- `400` - Cannot invite yourself
+- `400` - Invitation already sent
+- `401` - Authentication required
+
+---
+
+#### `GET /api/v1/game-invitations/pending`
+Get pending game invitations received (requires auth).
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Response (200):**
+```json
+{
+  "invitations": [
+    {
+      "id": "invitation-uuid",
+      "from_user_id": "user-uuid",
+      "session_code": "ABC123",
+      "created_at": "2024-01-15T10:30:00.000Z",
+      "user": {
+        "id": "user-uuid",
+        "username": "SenderName"
+      }
+    }
+  ]
+}
+```
+
+**Error Responses:**
+- `401` - Authentication required
+
+---
+
+#### `POST /api/v1/game-invitations/accept`
+Accept a game invitation (requires auth).
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+```json
+{
+  "invitation_id": "invitation-uuid"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Invitation accepted",
+  "session_code": "ABC123"
+}
+```
+
+**Error Responses:**
+- `400` - Invitation ID is required
+- `404` - Invitation not found
+- `404` - Session expired
+- `401` - Authentication required
+
+---
+
+#### `POST /api/v1/game-invitations/reject`
+Reject a game invitation (requires auth).
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+```json
+{
+  "invitation_id": "invitation-uuid"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Invitation rejected"
+}
+```
+
+**Error Responses:**
+- `400` - Invitation ID is required
 - `401` - Authentication required
 
 ---
@@ -509,6 +787,22 @@ Join a game session via WebSocket.
 **Important:** 
 - Use the `playerId` returned from the REST API (`POST /sessions` or `POST /sessions/:code/join`)
 - Use the same `playerId` for both REST and WebSocket!
+- Sessions are limited to 2 players. If full, connection will be rejected.
+
+---
+
+#### `start_game`
+Start the game (only player1 can emit this).
+
+**Payload:**
+```json
+{
+  "sessionCode": "ABC123",
+  "playerId": "player1-id"
+}
+```
+
+**Note:** This event can only be emitted by player1. The game will start and both players will receive `game_started` event.
 
 ---
 
@@ -694,6 +988,57 @@ Received when a chat message is sent.
 
 ---
 
+#### `both_players_ready`
+Received when both players have joined but the game hasn't started yet.
+
+**Payload:**
+```json
+{
+  "canStart": true,
+  "message": "Both players connected! Waiting for game to start...",
+  "session": {
+    "code": "ABC123",
+    "player1_id": "...",
+    "player2_id": "...",
+    "status": "waiting"
+  }
+}
+```
+
+---
+
+#### `game_started`
+Received when player1 starts the game.
+
+**Payload:**
+```json
+{
+  "sessionCode": "ABC123",
+  "message": "Game started!"
+}
+```
+
+---
+
+#### `game_finished`
+Received when the game ends (timeout or player lost).
+
+**Payload:**
+```json
+{
+  "reason": "timeout" | "game_over",
+  "winner": "player1" | "player2" | "tie",
+  "winnerScore": 15000,
+  "loserScore": 12000,
+  "player1Score": 15000,
+  "player2Score": 12000,
+  "player1Username": "Player1",
+  "player2Username": "Player2"
+}
+```
+
+---
+
 #### `player_joined`
 Received when a player joins the session.
 
@@ -749,12 +1094,33 @@ socket.on('game_state', (state) => {
   // Update your game UI
 });
 
-socket.on('state_update', ({ playerId, state }) => {
-  if (playerId === myPlayerId) {
+socket.on('game_state', (state) => {
+  // state contains full PlayerState object
+  // Check state.userId to determine if it's your state or opponent's
+  if (state.userId === myPlayerId) {
     // Update my game state
   } else {
     // Update opponent's game state
   }
+});
+
+socket.on('both_players_ready', (data) => {
+  // Both players connected, waiting for player1 to start
+  if (myRole === 'player1') {
+    // Show "Start Game" button
+  } else {
+    // Show "Waiting for player 1 to start" message
+  }
+});
+
+socket.on('game_started', () => {
+  // Game has started, enable controls
+});
+
+socket.on('game_finished', (result) => {
+  // Game ended, show winner/loser screen
+  console.log('Winner:', result.winner);
+  console.log('Scores:', result.player1Score, result.player2Score);
 });
 
 // 5. Send moves
