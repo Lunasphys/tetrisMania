@@ -13,8 +13,8 @@ export default function HomePage() {
   const handleCreateSession = async () => {
     try {
       const displayName = username || (user?.email?.split('@')[0]) || 'Player';
-      const session = await gameService.createSession(displayName);
-      navigate(`/game/${session.code}`);
+      const result = await gameService.createSession(displayName);
+      navigate(`/game/${result.session.code}`);
     } catch (error) {
       console.error('Failed to create session:', error);
       alert('Failed to create session');

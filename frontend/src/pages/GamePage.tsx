@@ -10,7 +10,7 @@ import './GamePage.css';
 export default function GamePage() {
   const { sessionCode: urlSessionCode } = useParams();
   const navigate = useNavigate();
-  const { user, isGuest, guestUsername } = useAuth();
+  const { user, guestUsername } = useAuth();
   const [sessionCode, setSessionCode] = useState(urlSessionCode || '');
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [username, setUsername] = useState('');
@@ -20,7 +20,7 @@ export default function GamePage() {
     const initializeGame = async () => {
       try {
         let code = urlSessionCode;
-        let displayName = username || guestUsername || (user?.email?.split('@')[0]) || 'Player';
+        let displayName = guestUsername || (user?.email?.split('@')[0]) || 'Player';
         // Generate a consistent playerId that will be used for both REST and WebSocket
         const pid = user?.id || `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
@@ -29,19 +29,24 @@ export default function GamePage() {
           const result = await gameService.createSession(displayName);
           code = result.session.code;
           setSessionCode(code);
+          setUsername(displayName);
           // Use the playerId returned from server to ensure consistency
           const serverPlayerId = result.playerId || pid;
           setPlayerId(serverPlayerId);
           // When creating, we are always player1
           setRole('player1');
+          // Update URL to include session code - this will trigger a re-render with the code
+          navigate(`/game/${code}`, { replace: true });
+          return; // Exit early, let the useEffect run again with the new URL
         } else {
           // Join existing session
+          setSessionCode(code);
+          setUsername(displayName);
           const result = await gameService.joinSession(code, displayName);
           setRole(result.role);
           setPlayerId(result.playerId || pid);
         }
 
-        setUsername(displayName);
       } catch (error) {
         console.error('Failed to initialize game:', error);
         alert('Failed to initialize game');
@@ -50,10 +55,11 @@ export default function GamePage() {
     };
 
     initializeGame();
-  }, []);
+  }, [urlSessionCode, user, guestUsername, navigate]);
 
+  // Only connect WebSocket when we have sessionCode, playerId, and username
   const { connected, gameState, opponentState, chatMessages, sessionInfo, sendMove, sendChatMessage, leaveSession } =
-    useWebSocket(sessionCode, playerId, username);
+    useWebSocket(sessionCode && playerId && username ? sessionCode : null, playerId, username);
 
   // Update role from session info when received from server
   useEffect(() => {
