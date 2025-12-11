@@ -248,6 +248,7 @@ export async function searchUser(req: AuthRequest, res: Response): Promise<void>
     const clientToUse = supabaseAdmin || supabase;
     
     // Search in profiles table by username (case-insensitive, partial match)
+    // Note: This searches in profiles.username which is set during signup
     let query = clientToUse
       .from('profiles')
       .select('id, username')
@@ -265,7 +266,14 @@ export async function searchUser(req: AuthRequest, res: Response): Promise<void>
     console.log('[FriendsController] Search query:', username);
     console.log('[FriendsController] Search results count:', data?.length || 0);
     if (data && data.length > 0) {
-      console.log('[FriendsController] Found users:', data.map(u => u.username));
+      console.log('[FriendsController] Found users:', data.map(u => ({ id: u.id, username: u.username })));
+    } else {
+      console.log('[FriendsController] No users found. Checking if profiles table has any users...');
+      // Debug: Check total profiles count
+      const { count } = await clientToUse
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+      console.log('[FriendsController] Total profiles in database:', count);
     }
 
     if (error) {

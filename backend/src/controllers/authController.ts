@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { supabase } from '../config/supabase';
+import { supabase, supabaseAdmin } from '../config/supabase';
 import { isValidEmail } from '../utils/helpers';
 import { AuthRequest } from '../middleware/auth';
 
@@ -54,6 +54,46 @@ export async function signup(req: Request, res: Response): Promise<void> {
     if (error) {
       res.status(400).json({ error: error.message });
       return;
+    }
+
+    // Ensure profile is created (trigger should do this, but we'll verify/create if needed)
+    if (data.user?.id) {
+      const clientToUse = supabaseAdmin || supabase;
+      const finalUsername = username || email.split('@')[0];
+      
+      // Check if profile exists
+      const { data: existingProfile } = await clientToUse
+        .from('profiles')
+        .select('id')
+        .eq('id', data.user.id)
+        .maybeSingle();
+
+      // Create profile if it doesn't exist (trigger should have done this, but just in case)
+      if (!existingProfile) {
+        const { error: profileError } = await clientToUse
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            username: finalUsername,
+          });
+
+        if (profileError) {
+          console.error('[AuthController] Failed to create profile:', profileError);
+          // Don't fail the signup, just log the error
+        } else {
+          console.log('[AuthController] Profile created for user:', data.user.id);
+        }
+      } else {
+        // Update username if it's different
+        const { error: updateError } = await clientToUse
+          .from('profiles')
+          .update({ username: finalUsername })
+          .eq('id', data.user.id);
+
+        if (updateError) {
+          console.error('[AuthController] Failed to update profile username:', updateError);
+        }
+      }
     }
 
     res.status(201).json({
