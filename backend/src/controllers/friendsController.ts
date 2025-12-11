@@ -36,12 +36,15 @@ export async function sendFriendRequest(req: AuthRequest, res: Response): Promis
       return;
     }
 
+    // Use admin client to bypass RLS (since we've already validated auth in middleware)
+    const clientToUse = supabaseAdmin || supabase;
+
     // Check if request already exists
-    const { data: existing } = await supabase
+    const { data: existing } = await clientToUse
       .from('friend_requests')
       .select('*')
       .or(`and(from_user_id.eq.${req.user.id},to_user_id.eq.${to_user_id}),and(from_user_id.eq.${to_user_id},to_user_id.eq.${req.user.id})`)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       const status = existing.status;
@@ -58,7 +61,7 @@ export async function sendFriendRequest(req: AuthRequest, res: Response): Promis
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await clientToUse
       .from('friend_requests')
       .insert({
         from_user_id: req.user.id,
@@ -368,11 +371,11 @@ export async function sendFriendRequestByUsername(req: AuthRequest, res: Respons
     }
 
     // Check if request already exists
-    const { data: existing } = await supabase
+    const { data: existing } = await clientToUse
       .from('friend_requests')
       .select('*')
       .or(`and(from_user_id.eq.${req.user.id},to_user_id.eq.${to_user_id}),and(from_user_id.eq.${to_user_id},to_user_id.eq.${req.user.id})`)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       const status = existing.status;
@@ -389,7 +392,7 @@ export async function sendFriendRequestByUsername(req: AuthRequest, res: Respons
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await clientToUse
       .from('friend_requests')
       .insert({
         from_user_id: req.user.id,
@@ -513,8 +516,11 @@ export async function removeFriend(req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
+    // Use admin client to bypass RLS (since we've already validated auth in middleware)
+    const clientToUse = supabaseAdmin || supabase;
+
     // Delete the friend relationship (accepted request)
-    const { error } = await supabase
+    const { error } = await clientToUse
       .from('friend_requests')
       .delete()
       .or(`and(from_user_id.eq.${req.user.id},to_user_id.eq.${friend_id},status.eq.accepted),and(from_user_id.eq.${friend_id},to_user_id.eq.${req.user.id},status.eq.accepted)`);
@@ -585,7 +591,6 @@ export async function getFriends(req: AuthRequest, res: Response): Promise<void>
     }
 
     // Get friend user details from profiles table
-    const clientToUse = supabaseAdmin || supabase;
     const { data: users, error: usersError } = await clientToUse
       .from('profiles')
       .select('id, username')
