@@ -1,0 +1,76 @@
+.leaderboard-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 40px 20px;
+}
+
+.leaderboard-container {
+  max-width: 900px;
+  margin: 0 auto;
+  background-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.leaderboard-container h1 {
+  color: #fff;
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 2.5rem;
+}
+
+.back-button {
+  display: block;
+  margin-bottom: 20px;
+  padding: 10px 20px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+
+.back-button:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.leaderboard-table thead {
+  background-color: rgba(78, 205, 196, 0.3);
+}
+
+.leaderboard-table th {
+  padding: 15px;
+  text-align: left;
+  color: #fff;
+  font-weight: bold;
+}
+
+.leaderboard-table td {
+  padding: 12px 15px;
+  color: #eaeaea;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.leaderboard-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.no-scores {
+  text-align: center;
+  color: #fff;
+  padding: 40px;
+  font-size: 1.2rem;
+}
+

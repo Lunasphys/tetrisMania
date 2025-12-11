@@ -1,0 +1,41 @@
+.tetris-grid-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.grid-title {
+  margin: 0;
+  color: #fff;
+  font-size: 1.2rem;
+}
+
+.tetris-grid {
+  display: flex;
+  flex-direction: column;
+  border: 3px solid #fff;
+  background-color: #000;
+  padding: 2px;
+}
+
+.grid-row {
+  display: flex;
+}
+
+.grid-cell {
+  width: 25px;
+  height: 25px;
+  box-sizing: border-box;
+}
+
+.grid-stats {
+  color: #fff;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.grid-stats div {
+  margin: 5px 0;
+}
+

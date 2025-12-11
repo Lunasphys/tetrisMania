@@ -1,0 +1,103 @@
+.profile-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 40px 20px;
+}
+
+.profile-container {
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.profile-container h1 {
+  color: #fff;
+  margin-bottom: 30px;
+  font-size: 2.5rem;
+}
+
+.back-button {
+  display: block;
+  margin-bottom: 20px;
+  padding: 10px 20px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.back-button:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.profile-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.profile-section h2 {
+  color: #4ecdc4;
+  margin-bottom: 15px;
+}
+
+.profile-info {
+  color: #fff;
+  margin-bottom: 15px;
+  line-height: 1.8;
+}
+
+.signout-button {
+  padding: 10px 20px;
+  background-color: #ff6b6b;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+.signout-button:hover {
+  background-color: #ee5a5a;
+}
+
+.friends-list,
+.scores-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.friend-item,
+.score-item {
+  padding: 12px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #fff;
+}
+
+.score-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.score-date {
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+.empty-state {
+  color: #aaa;
+  text-align: center;
+  padding: 20px;
+}
+

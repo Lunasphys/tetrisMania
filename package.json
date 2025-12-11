@@ -1,14 +1,14 @@
 {
-  "name": "${PROJECT_NAME}",
+  "name": "tetris-mania",
   "version": "1.0.0",
-  "description": "",
-  "main": "dist/index.js",
+  "description": "Tetris 1v1 Online Game - Full Stack TypeScript Application",
   "scripts": {
-    "build": "tsc"
-  },
-  "dependencies": {},
-  "devDependencies": {
-    "typescript": "^5.5.3"
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "test:backend": "cd backend && npm test"
   },
   "private": true
 }
