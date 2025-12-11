@@ -9,6 +9,42 @@ export default function HomePage() {
     const { user, isGuest, guestUsername, setGuest } = useAuth();
     const [sessionCode, setSessionCode] = useState('');
     const [username, setUsername] = useState(guestUsername || '');
+    const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
+
+    useEffect(() => {
+        const loadInvitations = async () => {
+            if (!user) return;
+            try {
+                const invitations = await gameInvitationsService.getPendingInvitations();
+                setPendingInvitations(invitations);
+            } catch (error) {
+                console.error('Failed to load invitations:', error);
+            }
+        };
+
+        loadInvitations();
+        // Refresh invitations every 5 seconds
+        const interval = setInterval(loadInvitations, 5000);
+        return () => clearInterval(interval);
+    }, [user]);
+
+    const handleAcceptInvitation = async (invitationId: string, sessionCode: string) => {
+        try {
+            await gameInvitationsService.acceptInvitation(invitationId);
+            navigate(`/game/${sessionCode}`);
+        } catch (error: any) {
+            alert(error.response?.data?.details || 'Erreur lors de l\'acceptation de l\'invitation');
+        }
+    };
+
+    const handleRejectInvitation = async (invitationId: string) => {
+        try {
+            await gameInvitationsService.rejectInvitation(invitationId);
+            setPendingInvitations(prev => prev.filter(inv => inv.id !== invitationId));
+        } catch (error: any) {
+            alert(error.response?.data?.details || 'Erreur lors du refus de l\'invitation');
+        }
+    };
 
     const handleCreateSession = async () => {
         try {
