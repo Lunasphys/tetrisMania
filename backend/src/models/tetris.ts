@@ -77,9 +77,9 @@ export function rotateTetromino(tetromino: Tetromino): Tetromino {
  * Check if a position is valid (within bounds and not colliding)
  */
 export function isValidPosition(
-  grid: number[][],
-  tetromino: Tetromino,
-  newPosition?: Position
+    grid: number[][],
+    tetromino: Tetromino | null,
+    newPosition?: Position
 ): boolean {
   const position = newPosition || tetromino.position;
   const { shape } = tetromino;

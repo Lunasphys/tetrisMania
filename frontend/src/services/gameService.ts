@@ -23,8 +23,8 @@ export const gameService = {
     return data.session;
   },
 
-  joinSession: async (code: string, username?: string): Promise<any> => {
-    const { data } = await api.post(`/sessions/${code}/join`, { username });
+  joinSession: async (code: string, username?: string, playerId?: string): Promise<any> => {
+    const { data } = await api.post(`/sessions/${code}/join`, { username, playerId });
     return data;
   },
 };

@@ -11,17 +11,33 @@ export async function signup(req: Request, res: Response): Promise<void> {
     const { email, password, username } = req.body;
 
     if (!email || !password) {
-      res.status(400).json({ error: 'Email and password are required' });
+      res.status(400).json({ 
+        error: 'Missing required fields',
+        details: 'Both email and password are required to create an account',
+        code: 'MISSING_CREDENTIALS',
+        missingFields: [!email && 'email', !password && 'password'].filter(Boolean)
+      });
       return;
     }
 
     if (!isValidEmail(email)) {
-      res.status(400).json({ error: 'Invalid email format' });
+      res.status(400).json({ 
+        error: 'Invalid email format',
+        details: `The email "${email}" is not in a valid format. Please use a valid email address (e.g., user@example.com)`,
+        code: 'INVALID_EMAIL_FORMAT',
+        providedEmail: email
+      });
       return;
     }
 
     if (password.length < 6) {
-      res.status(400).json({ error: 'Password must be at least 6 characters' });
+      res.status(400).json({ 
+        error: 'Password too short',
+        details: 'Password must be at least 6 characters long for security reasons',
+        code: 'PASSWORD_TOO_SHORT',
+        minLength: 6,
+        providedLength: password.length
+      });
       return;
     }
 
@@ -61,7 +77,12 @@ export async function login(req: Request, res: Response): Promise<void> {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      res.status(400).json({ error: 'Email and password are required' });
+      res.status(400).json({ 
+        error: 'Missing credentials',
+        details: 'Both email and password are required to sign in',
+        code: 'MISSING_CREDENTIALS',
+        missingFields: [!email && 'email', !password && 'password'].filter(Boolean)
+      });
       return;
     }
 
@@ -71,7 +92,23 @@ export async function login(req: Request, res: Response): Promise<void> {
     });
 
     if (error) {
-      res.status(401).json({ error: error.message });
+      let errorCode = 'LOGIN_ERROR';
+      let details = error.message;
+
+      if (error.message.includes('Invalid login credentials') || error.message.includes('wrong')) {
+        errorCode = 'INVALID_CREDENTIALS';
+        details = 'The email or password you entered is incorrect. Please check your credentials and try again.';
+      } else if (error.message.includes('Email not confirmed')) {
+        errorCode = 'EMAIL_NOT_CONFIRMED';
+        details = 'Please verify your email address before signing in. Check your inbox for the confirmation email.';
+      }
+
+      res.status(401).json({ 
+        error: 'Login failed',
+        details,
+        code: errorCode,
+        supabaseError: error.message
+      });
       return;
     }
 
@@ -111,8 +148,22 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
   try {
     const { email } = req.body;
 
-    if (!email || !isValidEmail(email)) {
-      res.status(400).json({ error: 'Valid email is required' });
+    if (!email) {
+      res.status(400).json({ 
+        error: 'Email is required',
+        details: 'Please provide an email address to reset your password',
+        code: 'MISSING_EMAIL'
+      });
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      res.status(400).json({ 
+        error: 'Invalid email format',
+        details: `The email "${email}" is not in a valid format. Please use a valid email address`,
+        code: 'INVALID_EMAIL_FORMAT',
+        providedEmail: email
+      });
       return;
     }
 
@@ -137,7 +188,11 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
 export async function deleteAccount(req: AuthRequest, res: Response): Promise<void> {
   try {
     if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
+      res.status(401).json({ 
+        error: 'Authentication required',
+        details: 'You must be logged in to delete your account. Please sign in first.',
+        code: 'AUTHENTICATION_REQUIRED'
+      });
       return;
     }
 

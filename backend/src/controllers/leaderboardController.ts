@@ -33,8 +33,23 @@ export async function getUserScores(req: AuthRequest, res: Response): Promise<vo
   try {
     const { id } = req.params;
 
-    if (!req.user || req.user.id !== id) {
-      res.status(403).json({ error: 'Access denied' });
+    if (!req.user) {
+      res.status(401).json({ 
+        error: 'Authentication required',
+        details: 'You must be logged in to view your score history',
+        code: 'AUTHENTICATION_REQUIRED'
+      });
+      return;
+    }
+
+    if (req.user.id !== id) {
+      res.status(403).json({ 
+        error: 'Access denied',
+        details: `You can only view your own scores. You tried to access scores for user ID: ${id}, but you are logged in as: ${req.user.id}`,
+        code: 'ACCESS_DENIED',
+        requestedUserId: id,
+        yourUserId: req.user.id
+      });
       return;
     }
 
@@ -46,13 +61,24 @@ export async function getUserScores(req: AuthRequest, res: Response): Promise<vo
       .limit(50);
 
     if (error) {
-      res.status(500).json({ error: error.message });
+      console.error('[LeaderboardController] Error fetching user scores:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch user scores',
+        details: error.message || 'Database error occurred while retrieving scores',
+        code: 'USER_SCORES_FETCH_ERROR',
+        supabaseError: error.message
+      });
       return;
     }
 
     res.json({ scores: data || [] });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('[LeaderboardController] Unexpected error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message || 'An unexpected error occurred',
+      code: 'INTERNAL_ERROR'
+    });
   }
 }
 
@@ -63,8 +89,22 @@ export async function saveScore(req: AuthRequest, res: Response): Promise<void> 
   try {
     const { score, lines_cleared, session_code, username } = req.body;
 
-    if (!score || score < 0) {
-      res.status(400).json({ error: 'Valid score is required' });
+    if (score === undefined || score === null) {
+      res.status(400).json({ 
+        error: 'Score is required',
+        details: 'Please provide a valid score value (number >= 0)',
+        code: 'MISSING_SCORE'
+      });
+      return;
+    }
+
+    if (typeof score !== 'number' || score < 0 || !Number.isInteger(score)) {
+      res.status(400).json({ 
+        error: 'Invalid score value',
+        details: `Score must be a non-negative integer. Received: ${score}`,
+        code: 'INVALID_SCORE',
+        providedScore: score
+      });
       return;
     }
 
@@ -79,13 +119,24 @@ export async function saveScore(req: AuthRequest, res: Response): Promise<void> 
     const { data, error } = await supabase.from('scores').insert(scoreData).select().single();
 
     if (error) {
-      res.status(500).json({ error: error.message });
+      console.error('[LeaderboardController] Error saving score:', error);
+      res.status(500).json({ 
+        error: 'Failed to save score',
+        details: error.message || 'Database error occurred while saving score',
+        code: 'SCORE_SAVE_ERROR',
+        supabaseError: error.message
+      });
       return;
     }
 
     res.status(201).json({ message: 'Score saved', score: data });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('[LeaderboardController] Unexpected error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message || 'An unexpected error occurred',
+      code: 'INTERNAL_ERROR'
+    });
   }
 }
 

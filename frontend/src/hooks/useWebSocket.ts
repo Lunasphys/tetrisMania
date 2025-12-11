@@ -48,6 +48,7 @@ export function useWebSocket(sessionCode: string | null, playerId: string | null
 
     socket.on('connect', () => {
       setConnected(true);
+      console.log('[WebSocket] Connected, joining session:', sessionCode, 'with playerId:', playerId);
       socket.emit('join_session', { sessionCode, playerId, username });
     });
 
@@ -59,8 +60,28 @@ export function useWebSocket(sessionCode: string | null, playerId: string | null
       setSessionInfo(info);
     });
 
-    socket.on('game_state', (state) => {
-      setGameState(state);
+    socket.on('both_players_ready', (data) => {
+      console.log('Both players ready:', data);
+      setSessionInfo((prev: any) => ({ 
+        ...prev, 
+        waiting: true,
+        bothPlayersConnected: true,
+        canStart: data.canStart
+      }));
+    });
+
+    socket.on('game_started', (data) => {
+      console.log('Game started:', data);
+      setSessionInfo((prev: any) => ({ ...prev, waiting: false }));
+    });
+
+    socket.on('game_state', (state: GameState) => {
+      // Check if this state belongs to us or opponent
+      if (state.userId === playerId) {
+        setGameState(state);
+      } else {
+        setOpponentState(state);
+      }
     });
 
     socket.on('state_update', (data: { playerId: string; state: GameState }) => {
@@ -116,6 +137,12 @@ export function useWebSocket(sessionCode: string | null, playerId: string | null
     }
   };
 
+  const startGame = () => {
+    if (socketRef.current && sessionCode && playerId) {
+      socketRef.current.emit('start_game', { sessionCode, playerId });
+    }
+  };
+
   return {
     connected,
     gameState,
@@ -125,6 +152,7 @@ export function useWebSocket(sessionCode: string | null, playerId: string | null
     sendMove,
     sendChatMessage,
     leaveSession,
+    startGame,
   };
 }
 

@@ -33,42 +33,42 @@ export function getSession(code: string): GameSession | undefined {
 }
 
 /**
- * Join a session as a player (if slot available) or spectator
+ * Join a session as a player (only 2 players allowed, no spectators)
  */
 export function joinSession(
   code: string,
   playerId: string,
   username: string
-): { session: GameSession; role: 'player1' | 'player2' | 'spectator' } {
+): { session: GameSession; role: 'player1' | 'player2' } {
   const session = sessions.get(code);
   if (!session) {
     throw new Error('Session not found');
   }
 
-  // Check if already in session
+  // IMPORTANT: Check if already in session FIRST
+  // This ensures that the creator of the session always gets player1 role
   if (session.player1_id === playerId) {
+    console.log(`[SessionService] Player ${playerId} is already player1 in session ${code}`);
     return { session, role: 'player1' };
   }
   if (session.player2_id === playerId) {
+    console.log(`[SessionService] Player ${playerId} is already player2 in session ${code}`);
     return { session, role: 'player2' };
   }
-  if (session.spectators.includes(playerId)) {
-    return { session, role: 'spectator' };
-  }
 
-  // Try to join as player2
+  // Player is not in session yet - can only join as player2 if slot is available
   if (!session.player2_id) {
     session.player2_id = playerId;
     session.player2_username = username;
-    session.status = 'playing';
+    // Keep status as 'waiting' - game will start when player1 clicks "Start Game"
+    session.status = 'waiting';
     session.updated_at = new Date().toISOString();
+    console.log(`[SessionService] Assigned ${username} (${playerId}) as player2 in session ${code}`);
     return { session, role: 'player2' };
   }
 
-  // Join as spectator
-  session.spectators.push(playerId);
-  session.updated_at = new Date().toISOString();
-  return { session, role: 'spectator' };
+  // Session is full (2 players already)
+  throw new Error('Session is full. Maximum 2 players allowed.');
 }
 
 /**
@@ -89,9 +89,13 @@ export function leaveSession(code: string, playerId: string): void {
   }
 
   // If no players left, remove session
-  if (!session.player1_id && !session.player2_id && session.spectators.length === 0) {
+  if (!session.player1_id && !session.player2_id) {
     sessions.delete(code);
   } else {
+    // If one player left, reset status to waiting
+    if (!session.player1_id || !session.player2_id) {
+      session.status = 'waiting';
+    }
     session.updated_at = new Date().toISOString();
   }
 }

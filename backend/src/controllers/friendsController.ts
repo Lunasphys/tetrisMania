@@ -8,14 +8,31 @@ import { supabase } from '../config/supabase';
 export async function sendFriendRequest(req: AuthRequest, res: Response): Promise<void> {
   try {
     if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
+      res.status(401).json({ 
+        error: 'Authentication required',
+        details: 'You must be logged in to send friend requests',
+        code: 'AUTHENTICATION_REQUIRED'
+      });
       return;
     }
 
     const { to_user_id } = req.body;
 
-    if (!to_user_id || to_user_id === req.user.id) {
-      res.status(400).json({ error: 'Invalid user ID' });
+    if (!to_user_id) {
+      res.status(400).json({ 
+        error: 'User ID is required',
+        details: 'Please provide the user ID of the person you want to add as a friend',
+        code: 'MISSING_USER_ID'
+      });
+      return;
+    }
+
+    if (to_user_id === req.user.id) {
+      res.status(400).json({ 
+        error: 'Cannot add yourself as a friend',
+        details: 'You cannot send a friend request to yourself',
+        code: 'CANNOT_ADD_SELF'
+      });
       return;
     }
 
@@ -27,7 +44,17 @@ export async function sendFriendRequest(req: AuthRequest, res: Response): Promis
       .single();
 
     if (existing) {
-      res.status(400).json({ error: 'Friend request already exists' });
+      const status = existing.status;
+      res.status(400).json({ 
+        error: 'Friend request already exists',
+        details: status === 'pending' 
+          ? 'You already have a pending friend request with this user'
+          : status === 'accepted'
+          ? 'This user is already your friend'
+          : 'You previously sent a friend request to this user',
+        code: 'FRIEND_REQUEST_EXISTS',
+        currentStatus: status
+      });
       return;
     }
 
@@ -42,13 +69,24 @@ export async function sendFriendRequest(req: AuthRequest, res: Response): Promis
       .single();
 
     if (error) {
-      res.status(500).json({ error: error.message });
+      console.error('[FriendsController] Error sending friend request:', error);
+      res.status(500).json({ 
+        error: 'Failed to send friend request',
+        details: error.message || 'Database error occurred while creating friend request',
+        code: 'FRIEND_REQUEST_CREATE_ERROR',
+        supabaseError: error.message
+      });
       return;
     }
 
     res.status(201).json({ message: 'Friend request sent', request: data });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('[FriendsController] Unexpected error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message || 'An unexpected error occurred',
+      code: 'INTERNAL_ERROR'
+    });
   }
 }
 
@@ -58,11 +96,24 @@ export async function sendFriendRequest(req: AuthRequest, res: Response): Promis
 export async function acceptFriendRequest(req: AuthRequest, res: Response): Promise<void> {
   try {
     if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
+      res.status(401).json({ 
+        error: 'Authentication required',
+        details: 'You must be logged in to accept friend requests',
+        code: 'AUTHENTICATION_REQUIRED'
+      });
       return;
     }
 
     const { request_id } = req.body;
+
+    if (!request_id) {
+      res.status(400).json({ 
+        error: 'Request ID is required',
+        details: 'Please provide the friend request ID to accept',
+        code: 'MISSING_REQUEST_ID'
+      });
+      return;
+    }
 
     const { data: request, error: fetchError } = await supabase
       .from('friend_requests')
@@ -73,7 +124,12 @@ export async function acceptFriendRequest(req: AuthRequest, res: Response): Prom
       .single();
 
     if (fetchError || !request) {
-      res.status(404).json({ error: 'Friend request not found' });
+      res.status(404).json({ 
+        error: 'Friend request not found',
+        details: `No pending friend request found with ID: ${request_id}. The request may have already been processed or does not exist.`,
+        code: 'FRIEND_REQUEST_NOT_FOUND',
+        providedRequestId: request_id
+      });
       return;
     }
 
@@ -83,13 +139,24 @@ export async function acceptFriendRequest(req: AuthRequest, res: Response): Prom
       .eq('id', request_id);
 
     if (error) {
-      res.status(500).json({ error: error.message });
+      console.error('[FriendsController] Error accepting friend request:', error);
+      res.status(500).json({ 
+        error: 'Failed to accept friend request',
+        details: error.message || 'Database error occurred',
+        code: 'FRIEND_REQUEST_ACCEPT_ERROR',
+        supabaseError: error.message
+      });
       return;
     }
 
     res.json({ message: 'Friend request accepted' });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('[FriendsController] Unexpected error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message || 'An unexpected error occurred',
+      code: 'INTERNAL_ERROR'
+    });
   }
 }
 
@@ -99,11 +166,24 @@ export async function acceptFriendRequest(req: AuthRequest, res: Response): Prom
 export async function refuseFriendRequest(req: AuthRequest, res: Response): Promise<void> {
   try {
     if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
+      res.status(401).json({ 
+        error: 'Authentication required',
+        details: 'You must be logged in to refuse friend requests',
+        code: 'AUTHENTICATION_REQUIRED'
+      });
       return;
     }
 
     const { request_id } = req.body;
+
+    if (!request_id) {
+      res.status(400).json({ 
+        error: 'Request ID is required',
+        details: 'Please provide the friend request ID to refuse',
+        code: 'MISSING_REQUEST_ID'
+      });
+      return;
+    }
 
     const { error } = await supabase
       .from('friend_requests')
@@ -112,13 +192,24 @@ export async function refuseFriendRequest(req: AuthRequest, res: Response): Prom
       .eq('to_user_id', req.user.id);
 
     if (error) {
-      res.status(500).json({ error: error.message });
+      console.error('[FriendsController] Error refusing friend request:', error);
+      res.status(500).json({ 
+        error: 'Failed to refuse friend request',
+        details: error.message || 'Database error occurred',
+        code: 'FRIEND_REQUEST_REFUSE_ERROR',
+        supabaseError: error.message
+      });
       return;
     }
 
     res.json({ message: 'Friend request refused' });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('[FriendsController] Unexpected error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message || 'An unexpected error occurred',
+      code: 'INTERNAL_ERROR'
+    });
   }
 }
 
@@ -128,7 +219,11 @@ export async function refuseFriendRequest(req: AuthRequest, res: Response): Prom
 export async function getFriends(req: AuthRequest, res: Response): Promise<void> {
   try {
     if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
+      res.status(401).json({ 
+        error: 'Authentication required',
+        details: 'You must be logged in to view your friends list',
+        code: 'AUTHENTICATION_REQUIRED'
+      });
       return;
     }
 
@@ -138,7 +233,13 @@ export async function getFriends(req: AuthRequest, res: Response): Promise<void>
       .or(`and(from_user_id.eq.${req.user.id},status.eq.accepted),and(to_user_id.eq.${req.user.id},status.eq.accepted)`);
 
     if (error) {
-      res.status(500).json({ error: error.message });
+      console.error('[FriendsController] Error fetching friend requests:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch friend requests',
+        details: error.message || 'Database error occurred while retrieving friend requests',
+        code: 'FRIEND_REQUESTS_FETCH_ERROR',
+        supabaseError: error.message
+      });
       return;
     }
 
@@ -147,6 +248,11 @@ export async function getFriends(req: AuthRequest, res: Response): Promise<void>
       request.from_user_id === req.user!.id ? request.to_user_id : request.from_user_id
     );
 
+    if (friends.length === 0) {
+      res.json({ friends: [] });
+      return;
+    }
+
     // Get friend user details
     const { data: users, error: usersError } = await supabase
       .from('users')
@@ -154,13 +260,24 @@ export async function getFriends(req: AuthRequest, res: Response): Promise<void>
       .in('id', friends);
 
     if (usersError) {
-      res.status(500).json({ error: usersError.message });
+      console.error('[FriendsController] Error fetching friend user details:', usersError);
+      res.status(500).json({ 
+        error: 'Failed to fetch friend details',
+        details: usersError.message || 'Database error occurred while retrieving friend user information',
+        code: 'FRIEND_DETAILS_FETCH_ERROR',
+        supabaseError: usersError.message
+      });
       return;
     }
 
     res.json({ friends: users || [] });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('[FriendsController] Unexpected error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message || 'An unexpected error occurred',
+      code: 'INTERNAL_ERROR'
+    });
   }
 }
 
