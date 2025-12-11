@@ -21,21 +21,26 @@ export default function GamePage() {
       try {
         let code = urlSessionCode;
         let displayName = username || guestUsername || (user?.email?.split('@')[0]) || 'Player';
+        // Generate a consistent playerId that will be used for both REST and WebSocket
         const pid = user?.id || `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
         if (!code) {
           // Create new session
-          const session = await gameService.createSession(displayName);
-          code = session.code;
+          const result = await gameService.createSession(displayName);
+          code = result.session.code;
           setSessionCode(code);
+          // Use the playerId returned from server to ensure consistency
+          const serverPlayerId = result.playerId || pid;
+          setPlayerId(serverPlayerId);
+          // When creating, we are always player1
           setRole('player1');
         } else {
           // Join existing session
           const result = await gameService.joinSession(code, displayName);
           setRole(result.role);
+          setPlayerId(result.playerId || pid);
         }
 
-        setPlayerId(pid);
         setUsername(displayName);
       } catch (error) {
         console.error('Failed to initialize game:', error);
@@ -49,6 +54,13 @@ export default function GamePage() {
 
   const { connected, gameState, opponentState, chatMessages, sessionInfo, sendMove, sendChatMessage, leaveSession } =
     useWebSocket(sessionCode, playerId, username);
+
+  // Update role from session info when received from server
+  useEffect(() => {
+    if (sessionInfo?.role) {
+      setRole(sessionInfo.role);
+    }
+  }, [sessionInfo]);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {

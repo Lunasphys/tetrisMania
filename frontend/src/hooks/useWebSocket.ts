@@ -1,7 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+// Auto-detect socket URL based on current hostname
+const getSocketUrl = () => {
+  // If VITE_SOCKET_URL is explicitly set, use it
+  if (import.meta.env.VITE_SOCKET_URL && import.meta.env.VITE_SOCKET_URL !== 'http://localhost:3001') {
+    return import.meta.env.VITE_SOCKET_URL;
+  }
+  
+  // If accessing via IP (not localhost), use the same IP for socket
+  const hostname = window.location.hostname;
+  if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    return `http://${hostname}:3001`;
+  }
+  
+  // Default to localhost
+  return 'http://localhost:3001';
+};
+
+const SOCKET_URL = getSocketUrl();
 
 export interface GameState {
   userId: string;

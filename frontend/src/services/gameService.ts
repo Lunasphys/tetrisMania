@@ -13,9 +13,9 @@ export interface GameSession {
 }
 
 export const gameService = {
-  createSession: async (username?: string): Promise<GameSession> => {
+  createSession: async (username?: string): Promise<{ session: GameSession; playerId: string }> => {
     const { data } = await api.post('/sessions', { username });
-    return data.session;
+    return { session: data.session, playerId: data.playerId };
   },
 
   getSession: async (code: string): Promise<GameSession> => {

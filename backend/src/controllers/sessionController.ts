@@ -21,6 +21,7 @@ export async function createGameSession(req: AuthRequest, res: Response): Promis
         player1_username: session.player1_username,
         status: session.status,
       },
+      playerId: playerId, // Return the playerId so frontend can use it
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Internal server error' });
