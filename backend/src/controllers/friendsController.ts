@@ -249,48 +249,92 @@ export async function searchUser(req: AuthRequest, res: Response): Promise<void>
 
     // Use admin client to bypass RLS (since we've already validated auth in middleware)
     const clientToUse = supabaseAdmin || supabase;
-    
-    // Search in profiles table by username (case-insensitive, partial match)
-    // Note: This searches in profiles.username which is set during signup
-    let query = clientToUse
-      .from('profiles')
-      .select('id, username')
-      .neq('id', req.user.id) // Exclude current user
-      .not('username', 'is', null); // Exclude users without username
-
-    if (username) {
-      // Use partial match (starts with or contains)
-      // This will match: "davy" -> "davy.marthely", "davymarthely", etc.
-      query = query.ilike('username', `%${username}%`);
-    }
-
-    const { data, error } = await query.limit(10);
-    
-    console.log('[FriendsController] Search query:', username);
-    console.log('[FriendsController] Search results count:', data?.length || 0);
-    if (data && data.length > 0) {
-      console.log('[FriendsController] Found users:', data.map(u => ({ id: u.id, username: u.username })));
-    } else {
-      console.log('[FriendsController] No users found. Checking if profiles table has any users...');
-      // Debug: Check total profiles count
-      const { count } = await clientToUse
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
-      console.log('[FriendsController] Total profiles in database:', count);
-    }
-
-    if (error) {
-      console.error('[FriendsController] Error searching users:', error);
+    if (!clientToUse) {
       res.status(500).json({ 
-        error: 'Failed to search users',
-        details: error.message || 'Database error occurred',
-        code: 'USER_SEARCH_ERROR',
-        supabaseError: error.message
+        error: 'Server configuration error',
+        details: 'Supabase admin client not available',
+        code: 'SERVER_CONFIG_ERROR'
       });
       return;
     }
+    
+    const searchTerm = (username || email) as string;
+    const results: Array<{ id: string; username: string | null }> = [];
+    const seenIds = new Set<string>();
 
-    res.json({ users: data || [] });
+    if (searchTerm) {
+      // 1. Search in profiles table by username (case-insensitive, partial match)
+      // This searches in profiles.username which is set during signup
+      const { data: usersWithUsername, error: error1 } = await clientToUse
+        .from('profiles')
+        .select('id, username')
+        .neq('id', req.user.id) // Exclude current user
+        .not('username', 'is', null) // Only users with username
+        .ilike('username', `%${searchTerm}%`)
+        .limit(10);
+      
+      if (error1) {
+        console.error('[FriendsController] Error searching users with username:', error1);
+      } else if (usersWithUsername) {
+        for (const user of usersWithUsername) {
+          if (!seenIds.has(user.id)) {
+            results.push(user);
+            seenIds.add(user.id);
+          }
+        }
+      }
+
+      // 2. Search users without username by email (part before @)
+      // We need to query auth.users through the admin API
+      // Since we can't directly query auth.users, we'll get all profiles without username
+      // and then filter by checking their email
+      const { data: usersWithoutUsername, error: error2 } = await clientToUse
+        .from('profiles')
+        .select('id, username')
+        .neq('id', req.user.id) // Exclude current user
+        .is('username', null) // Only users without username
+        .limit(50); // Get more to filter by email
+      
+      if (error2) {
+        console.error('[FriendsController] Error searching users without username:', error2);
+      } else if (usersWithoutUsername && supabaseAdmin) {
+        // For each user without username, check their email
+        for (const profile of usersWithoutUsername) {
+          try {
+            // Get user email from auth.users using admin API
+            const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(profile.id);
+            
+            if (!authError && authUser?.user?.email) {
+              const emailPrefix = authUser.user.email.split('@')[0];
+              // Check if search term matches the email prefix (case-insensitive, partial match)
+              if (emailPrefix.toLowerCase().includes(searchTerm.toLowerCase())) {
+                if (!seenIds.has(profile.id) && results.length < 10) {
+                  // Use email prefix as username for display
+                  results.push({
+                    id: profile.id,
+                    username: emailPrefix
+                  });
+                  seenIds.add(profile.id);
+                }
+              }
+            }
+          } catch (err) {
+            console.error(`[FriendsController] Error getting email for user ${profile.id}:`, err);
+          }
+        }
+      }
+    }
+
+    // Limit to 10 results total
+    const finalResults = results.slice(0, 10);
+    
+    console.log('[FriendsController] Search query:', searchTerm);
+    console.log('[FriendsController] Search results count:', finalResults.length);
+    if (finalResults.length > 0) {
+      console.log('[FriendsController] Found users:', finalResults.map(u => ({ id: u.id, username: u.username })));
+    }
+
+    res.json({ users: finalResults });
   } catch (error: any) {
     console.error('[FriendsController] Unexpected error:', error);
     res.status(500).json({ 

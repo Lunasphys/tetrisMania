@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { friendsService, Friend, PendingRequest } from '../services/friendsService';
 import { leaderboardService, Score } from '../services/leaderboardService';
+import { supabase } from '../config/supabase';
 import './ProfilePage.css';
 
 export default function ProfilePage() {
@@ -17,6 +18,7 @@ export default function ProfilePage() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [viewingFriendId, setViewingFriendId] = useState<string | null>(userId || null);
+  const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -24,6 +26,23 @@ export default function ProfilePage() {
 
       try {
         const targetUserId = viewingFriendId || user.id;
+        
+        // Load user profile (username) if viewing own profile
+        if (!viewingFriendId || viewingFriendId === user.id) {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', user.id)
+            .single();
+          
+          if (!profileError && profile) {
+            setProfileUsername(profile.username);
+          } else {
+            // Fallback to email prefix if no username
+            setProfileUsername(user.email?.split('@')[0] || null);
+          }
+        }
+        
         const [friendsData, pendingData, scoresData] = await Promise.all([
           friendsService.getFriends(),
           friendsService.getPendingRequests(),
@@ -146,31 +165,56 @@ export default function ProfilePage() {
     return <div className="profile-page">Loading...</div>;
   }
 
+  const isViewingFriend = viewingFriendId && viewingFriendId !== user?.id;
+  const viewingFriend = isViewingFriend ? friends.find(f => f.id === viewingFriendId) : null;
+
   return (
     <div className="profile-page">
       <div className="profile-container">
-        <h1>Profile</h1>
+        <h1>{isViewingFriend ? `Profil de ${viewingFriend?.username || 'ami'}` : 'Profile'}</h1>
         <button onClick={() => navigate('/')} className="back-button">
           ← Back to Home
         </button>
 
-        <div className="profile-section">
-          <h2>Account Info</h2>
-          <div className="profile-info">
-            <div>
-              <strong>Email:</strong> {user?.email}
+        {isViewingFriend && (
+          <div className="profile-section">
+            <h2>Informations</h2>
+            <div className="profile-info">
+              <div>
+                <strong>Pseudo:</strong> {viewingFriend?.username || `Utilisateur ${viewingFriendId.substring(0, 8)}`}
+              </div>
+              <div>
+                <strong>User ID:</strong> {viewingFriendId}
+              </div>
             </div>
-            <div>
-              <strong>User ID:</strong> {user?.id}
-            </div>
+            <button onClick={() => setViewingFriendId(null)} className="back-to-profile-button">
+              ← Retour à mon profil
+            </button>
           </div>
-          <button onClick={handleSignOut} className="signout-button">
-            Sign Out
-          </button>
-        </div>
+        )}
 
-        <div className="profile-section">
-          <h2>Amis ({friends.length})</h2>
+        {!isViewingFriend && (
+          <>
+            <div className="profile-section">
+              <h2>Account Info</h2>
+              <div className="profile-info">
+                <div>
+                  <strong>Pseudo:</strong> {profileUsername || user?.email?.split('@')[0] || 'Non défini'}
+                </div>
+                <div>
+                  <strong>Email:</strong> {user?.email}
+                </div>
+                <div>
+                  <strong>User ID:</strong> {user?.id}
+                </div>
+              </div>
+              <button onClick={handleSignOut} className="signout-button">
+                Sign Out
+              </button>
+            </div>
+
+            <div className="profile-section">
+              <h2>Amis ({friends.length})</h2>
           {friends.length === 0 ? (
             <div className="empty-state">Aucun ami pour le moment</div>
           ) : (
@@ -198,10 +242,10 @@ export default function ProfilePage() {
               ))}
             </div>
           )}
-        </div>
+            </div>
 
-        <div className="profile-section">
-          <h2>Demandes d'amis en attente ({pendingRequests.length})</h2>
+            <div className="profile-section">
+              <h2>Demandes d'amis en attente ({pendingRequests.length})</h2>
           {pendingRequests.length === 0 ? (
             <div className="empty-state">Aucune demande en attente</div>
           ) : (
@@ -234,10 +278,10 @@ export default function ProfilePage() {
               ))}
             </div>
           )}
-        </div>
+            </div>
 
-        <div className="profile-section">
-          <h2>Rechercher un ami</h2>
+            <div className="profile-section">
+              <h2>Rechercher un ami</h2>
           <div className="search-friends">
             <input
               type="text"
@@ -286,18 +330,15 @@ export default function ProfilePage() {
               <p className="no-results">Aucun utilisateur trouvé avec "{searchUsername}"</p>
             </div>
           )}
-        </div>
+            </div>
+          </>
+        )}
 
         <div className="profile-section">
           <h2>
-            {viewingFriendId && viewingFriendId !== user?.id 
-              ? `Scores de ${friends.find(f => f.id === viewingFriendId)?.username || 'ami'}`
+            {isViewingFriend 
+              ? `Scores de ${viewingFriend?.username || 'ami'}`
               : 'Mes scores récents'}
-            {viewingFriendId && viewingFriendId !== user?.id && (
-              <button onClick={() => setViewingFriendId(null)} className="back-to-profile-button">
-                ← Retour à mon profil
-              </button>
-            )}
           </h2>
           {scores.length === 0 ? (
             <div className="empty-state">Aucun score pour le moment</div>

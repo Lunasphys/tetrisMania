@@ -81,37 +81,41 @@ async function endGame(io: SocketIOServer, sessionCode: string, reason: 'timeout
 
   if (player1State && session.player1_id) {
     savePromises.push(
-      supabase.from('scores').insert({
-        user_id: session.player1_id.startsWith('guest_') ? null : session.player1_id,
-        username: player1State.username,
-        score: player1State.score,
-        lines_cleared: player1State.linesCleared,
-        session_code: sessionCode,
-      }).then(({ error }) => {
-        if (error) {
-          console.error(`[WebSocket] Failed to save score for player1:`, error);
-        } else {
-          console.log(`[WebSocket] Saved score for player1: ${player1State.score}`);
-        }
-      })
+      Promise.resolve(
+        supabase.from('scores').insert({
+          user_id: session.player1_id.startsWith('guest_') ? null : session.player1_id,
+          username: player1State.username,
+          score: player1State.score,
+          lines_cleared: player1State.linesCleared,
+          session_code: sessionCode,
+        }).then(({ error }) => {
+          if (error) {
+            console.error(`[WebSocket] Failed to save score for player1:`, error);
+          } else {
+            console.log(`[WebSocket] Saved score for player1: ${player1State.score}`);
+          }
+        })
+      )
     );
   }
 
   if (player2State && session.player2_id) {
     savePromises.push(
-      supabase.from('scores').insert({
-        user_id: session.player2_id.startsWith('guest_') ? null : session.player2_id,
-        username: player2State.username,
-        score: player2State.score,
-        lines_cleared: player2State.linesCleared,
-        session_code: sessionCode,
-      }).then(({ error }) => {
-        if (error) {
-          console.error(`[WebSocket] Failed to save score for player2:`, error);
-        } else {
-          console.log(`[WebSocket] Saved score for player2: ${player2State.score}`);
-        }
-      })
+      Promise.resolve(
+        supabase.from('scores').insert({
+          user_id: session.player2_id.startsWith('guest_') ? null : session.player2_id,
+          username: player2State.username,
+          score: player2State.score,
+          lines_cleared: player2State.linesCleared,
+          session_code: sessionCode,
+        }).then(({ error }) => {
+          if (error) {
+            console.error(`[WebSocket] Failed to save score for player2:`, error);
+          } else {
+            console.log(`[WebSocket] Saved score for player2: ${player2State.score}`);
+          }
+        })
+      )
     );
   }
 
@@ -310,6 +314,10 @@ export function initializeGameSocket(server: HTTPServer): SocketIOServer {
 
       // Start the game
       updateSessionStatus(sessionCode, 'playing');
+      
+      // Set game start time
+      const startTime = Date.now();
+      setGameStartTime(sessionCode, startTime);
 
       // Send initial game state to both players
       const player1State = playerStates.get(session.player1_id);
@@ -324,10 +332,12 @@ export function initializeGameSocket(server: HTTPServer): SocketIOServer {
         io.to(sessionCode).emit('game_state', player2State);
       }
 
-      // Notify everyone that game has started
+      // Notify everyone that game has started with start time
       io.to(sessionCode).emit('game_started', {
         message: 'Game started!',
-        session
+        session,
+        startTime: startTime,
+        duration: GAME_DURATION_MS
       });
 
       console.log(`[WebSocket] Game started in session ${sessionCode} by player1 ${playerId}`);

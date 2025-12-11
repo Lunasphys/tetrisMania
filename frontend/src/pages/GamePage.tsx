@@ -39,9 +39,7 @@ export default function GamePage() {
                 setUsername(displayName);
 
                 if (!urlSessionCode) {
-                    // ============================================
                     // CREATING A NEW SESSION
-                    // ============================================
                     console.log('[GamePage] Creating new session...');
 
                     const result = await gameService.createSession(displayName);
@@ -70,9 +68,7 @@ export default function GamePage() {
                     return;
                 }
 
-                // ============================================
                 // JOINING AN EXISTING SESSION
-                // ============================================
                 const code = urlSessionCode.toUpperCase();
                 console.log(`[GamePage] Joining existing session: ${code}`);
 
@@ -160,8 +156,17 @@ export default function GamePage() {
     }, [urlSessionCode, navigate]); // Minimal dependencies to prevent re-runs
 
   // Connect WebSocket when ready
-  const { connected, gameState, opponentState, chatMessages, sessionInfo, gameResult, sendMove, sendChatMessage, leaveSession, startGame } =
+  const { connected, gameState, opponentState, chatMessages, sessionInfo, gameResult, timeRemaining, sendMove, sendChatMessage, leaveSession, startGame } =
     useWebSocket(sessionCode && playerId && username ? sessionCode : null, playerId, username);
+
+  // Format time remaining as MM:SS
+  const formatTime = (ms: number | null): string => {
+    if (ms === null || ms <= 0) return '00:00';
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
 
     // Update role and waiting state from session info
     useEffect(() => {
@@ -275,6 +280,16 @@ export default function GamePage() {
                     <h2>Session: {sessionCode}</h2>
                     <div className="role-badge">{role}</div>
                     <div className="connection-status">{connected ? '🟢 Connected' : '🔴 Disconnected'}</div>
+                    {timeRemaining !== null && !waitingForPlayer && (
+                        <div className="timer-display" style={{
+                            fontSize: '1.5rem',
+                            fontWeight: 'bold',
+                            color: timeRemaining < 30000 ? '#f00' : timeRemaining < 60000 ? '#ffa500' : '#0f0',
+                            marginTop: '10px'
+                        }}>
+                            ⏱️ {formatTime(timeRemaining)}
+                        </div>
+                    )}
                 </div>
                 <button onClick={handleLeave} className="leave-button">
                     Leave Game
@@ -411,7 +426,6 @@ export default function GamePage() {
                         <div className="opponent-actions">
                             <h3>Inviter un ami</h3>
                             <InviteFriendsList 
-                                sessionCode={sessionCode}
                                 onInvite={handleInviteFriend}
                                 disabled={sendingInvitation || !connected}
                             />

@@ -40,6 +40,9 @@ export function useWebSocket(sessionCode: string | null, playerId: string | null
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [sessionInfo, setSessionInfo] = useState<any>(null);
   const [gameResult, setGameResult] = useState<any>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
+  const [gameDuration, setGameDuration] = useState<number | null>(null);
 
   useEffect(() => {
     if (!sessionCode || !playerId || !username) return;
@@ -75,12 +78,21 @@ export function useWebSocket(sessionCode: string | null, playerId: string | null
       console.log('Game started:', data);
       setSessionInfo((prev: any) => ({ ...prev, waiting: false }));
       setGameResult(null); // Reset game result when new game starts
+      
+      // Store game start time and duration for timer
+      if (data.startTime) {
+        setGameStartTime(data.startTime);
+        setGameDuration(data.duration || 2 * 60 * 1000); // Default 2 minutes
+      }
     });
 
     socket.on('game_finished', (data) => {
       console.log('Game finished:', data);
       setGameResult(data);
       setSessionInfo((prev: any) => ({ ...prev, waiting: false }));
+      setGameStartTime(null);
+      setGameDuration(null);
+      setTimeRemaining(null);
     });
 
     socket.on('game_state', (state: GameState) => {
@@ -118,8 +130,37 @@ export function useWebSocket(sessionCode: string | null, playerId: string | null
 
     return () => {
       socket.disconnect();
+      setGameStartTime(null);
+      setGameDuration(null);
+      setTimeRemaining(null);
     };
   }, [sessionCode, playerId, username]);
+
+  // Timer effect to update remaining time
+  useEffect(() => {
+    if (!gameStartTime || !gameDuration) {
+      setTimeRemaining(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const elapsed = Date.now() - gameStartTime;
+      const remaining = Math.max(0, gameDuration - elapsed);
+      setTimeRemaining(remaining);
+
+      if (remaining <= 0) {
+        setTimeRemaining(0);
+      }
+    };
+
+    // Update immediately
+    updateTimer();
+
+    // Update every second
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [gameStartTime, gameDuration]);
 
   const sendMove = (type: 'left' | 'right' | 'rotate' | 'down' | 'drop') => {
     if (socketRef.current && sessionCode && playerId) {
@@ -158,6 +199,7 @@ export function useWebSocket(sessionCode: string | null, playerId: string | null
     chatMessages,
     sessionInfo,
     gameResult,
+    timeRemaining,
     sendMove,
     sendChatMessage,
     leaveSession,

@@ -3,12 +3,11 @@ import { friendsService, Friend } from '../services/friendsService';
 import './InviteFriendsList.css';
 
 interface InviteFriendsListProps {
-  sessionCode: string;
   onInvite: (friendId: string) => void;
   disabled?: boolean;
 }
 
-export default function InviteFriendsList({ sessionCode, onInvite, disabled }: InviteFriendsListProps) {
+export default function InviteFriendsList({ onInvite, disabled }: InviteFriendsListProps) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
 

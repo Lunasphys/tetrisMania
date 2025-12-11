@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { supabase } from '../config/supabase';
+import { supabase, supabaseAdmin } from '../config/supabase';
 
 /**
  * Get global leaderboard
@@ -48,12 +48,20 @@ export async function getUserScores(req: AuthRequest, res: Response): Promise<vo
     // Check if viewing friend's profile
     let isFriend = false;
     if (!isOwnProfile) {
-      const { data: friendRequest } = await supabase
+      // Use admin client to bypass RLS (since we've already validated auth in middleware)
+      const clientToUse = supabaseAdmin || supabase;
+      
+      const { data: friendRequest, error: friendError } = await clientToUse
         .from('friend_requests')
         .select('*')
         .or(`and(from_user_id.eq.${req.user.id},to_user_id.eq.${id},status.eq.accepted),and(from_user_id.eq.${id},to_user_id.eq.${req.user.id},status.eq.accepted)`)
-        .single();
-      isFriend = !!friendRequest;
+        .maybeSingle();
+      
+      if (friendError) {
+        console.error('[LeaderboardController] Error checking friendship:', friendError);
+      } else {
+        isFriend = !!friendRequest;
+      }
     }
 
     if (!isOwnProfile && !isFriend) {
@@ -69,7 +77,10 @@ export async function getUserScores(req: AuthRequest, res: Response): Promise<vo
 
     // Get scores by user_id (for authenticated users)
     // Note: Guest scores (user_id = null) won't be retrieved here
-    const { data, error } = await supabase
+    // Use admin client to bypass RLS (since we've already validated auth in middleware)
+    const clientToUse = supabaseAdmin || supabase;
+    
+    const { data, error } = await clientToUse
       .from('scores')
       .select('*')
       .eq('user_id', id)
